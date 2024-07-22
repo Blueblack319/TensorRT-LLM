@@ -16,6 +16,8 @@
 #pragma once
 
 #include "decoderMaskedMultiheadAttentionTemplate.h"
+#include "decoderMaskedMultiheadAttentionTemplate_1.h"
+#include "decoderMaskedMultiheadAttentionTemplate_2.h"
 #include "tensorrt_llm/common/assert.h"
 #include "tensorrt_llm/common/envUtils.h"
 #include "tensorrt_llm/kernels/decoderMaskedMultiheadAttention.h"
@@ -174,6 +176,9 @@ inline void multi_block_grid_setup(dim3& grid, const Multihead_attention_params<
         TLLM_CHECK_WITH_INFO(                                                                                          \
             res == cudaSuccess, "Sequence Length is too long for the MMHA kernel (not enough shared memory).");        \
     }                                                                                                                  \
+    mmha::masked_multihead_attention_kernel_1<T, T_cache, KVCacheBuffer, Dh, DYNAMIC_THDS_PER_BLOCK,                   \
+        KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, ENABLE_MULTI_BLOCK>                                           \
+        <<<grid, DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz, stream>>>(params, kv_cache_buffer);                          \
     mmha::masked_multihead_attention_kernel<T, T_cache, KVCacheBuffer, Dh, DYNAMIC_THDS_PER_BLOCK,                     \
         KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, ENABLE_MULTI_BLOCK>                                           \
         <<<grid, DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz, stream>>>(params, kv_cache_buffer);
