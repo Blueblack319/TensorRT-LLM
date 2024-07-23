@@ -262,6 +262,7 @@ class LLaMAModel(Module):
         else:
             hidden_states = recv(hidden_states, self.mapping.prev_pp_rank())
         self.register_network_output(f"embd", hidden_states)
+        print("model.py\n")
 
         for layer_idx, (
                 layer, past, pointer, host_pointer,

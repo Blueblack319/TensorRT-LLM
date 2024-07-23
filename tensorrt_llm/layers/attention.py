@@ -621,6 +621,7 @@ class Attention(Module):
         
         # [x] For a custom plugin
         # if default_net().plugin_config.gpt_attention_plugin:
+        print(f"attention.py\n")
         if default_net().plugin_config.gpt_attention_custom_plugin:
             assert self.attention_mask_type in [
                 AttentionMaskType.causal, AttentionMaskType.bidirectional,

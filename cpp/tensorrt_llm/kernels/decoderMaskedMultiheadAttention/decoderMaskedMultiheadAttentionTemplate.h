@@ -1891,9 +1891,6 @@ __global__ void masked_multihead_attention_kernel(
         ? divUp(timesteps_per_block, K_PER_WARP) * K_PER_WARP
         : divUp(static_cast<unsigned>(kv_loop_length), K_PER_WARP) * K_PER_WARP;
 
-    // [x] For the offset of qk_values
-    const auto max_attention_window_size = params.max_attention_window_size;
-
     // Iterate over the keys/timesteps to compute the various (Q*K^T)_{ti} values.
     // Note max_attention_window_size is maximum of cyclic_attention_window_size among all layers.
     // By default, you can assume that they are the same.
@@ -2050,6 +2047,10 @@ __global__ void masked_multihead_attention_kernel(
                 // Calculate the max for softmax.
                 qk_max = fmaxf(qk_max, qk_);
                 // // DEBUGGING
+                if (hi == 0)
+                {
+                    printf("qk_smem[%d]: %f\n", local_ti, qk_);
+                }
                 // printf("threadIdx.x: %d, ti: %d, Local ti: %d\n", threadIdx.x, ti, local_ti);
                 // Store the product to shared memory.
                 qk_smem[local_ti] = qk_;
@@ -2237,14 +2238,6 @@ __global__ void masked_multihead_attention_kernel(
     // Make sure the products are in shared memory.
     __syncthreads();
 
-    // [x] Store the values in qk_smem into qk_values (Shared memory -> Global memory)
-    int qk_values_offset = hi * max_attention_window_size;
-#pragma unroll
-    for (int out_i = tidx; out_i < kv_loop_length; out_i += THREADS_PER_BLOCK)
-    {
-        convert_from_float(reinterpret_cast<float*>(&params.qk_values[qk_values_offset + out_i]), qk_smem[out_i]);
-    }
-
     // After the syncthreads, the target k position (cyclic kv cache) should also have been used by the k loop.
     // Write the K values to the global memory cache.
     //
@@ -2286,10 +2279,20 @@ __global__ void masked_multihead_attention_kernel(
         qk_max = fmaxf(qk_max, __shfl_xor_sync(uint32_t(-1), qk_max, mask));
     }
 
-    // [x] Store the qk_max into qk_max_values (register -> Global memory)
-    if (lane == 0)
+    // [ ] Compare
+    if (hi == 0)
     {
-        convert_from_float(reinterpret_cast<float*>(&params.qk_max_values[hi]), qk_max);
+        if (tidx == 0)
+        {
+            printf("In the original kernel\n");
+            printf("qk_max: %f\n", qk_max);
+        }
+
+#pragma unroll
+        for (int out_i = tidx; out_i < kv_loop_length; out_i += THREADS_PER_BLOCK)
+        {
+            printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
+        }
     }
 
     // Broadcast to all the threads in the warp.

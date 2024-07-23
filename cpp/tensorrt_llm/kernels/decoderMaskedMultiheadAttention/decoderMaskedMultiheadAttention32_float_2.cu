@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "decoderMaskedMultiheadAttentionLaunch_split.h"
+#include "decoderMaskedMultiheadAttentionLaunch.h"
 
 namespace tensorrt_llm
 {

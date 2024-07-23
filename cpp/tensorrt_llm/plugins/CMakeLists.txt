@@ -30,7 +30,7 @@ set(PLUGIN_SOURCES)
 set(PLUGIN_CU_SOURCES)
 
 set(PLUGIN_LISTS
-    bertAttentionPlugin
+    # bertAttentionPlugin
     gptAttentionCommon
     gptAttentionPlugin
     # [x] For a custom plugin
@@ -39,16 +39,17 @@ set(PLUGIN_LISTS
     layernormPlugin
     rmsnormPlugin
     gemmPlugin
-    smoothQuantGemmPlugin
+    # smoothQuantGemmPlugin
     quantizePerTokenPlugin
     quantizeTensorPlugin
     layernormQuantizationPlugin
     rmsnormQuantizationPlugin
-    weightOnlyGroupwiseQuantMatmulPlugin
+    # weightOnlyGroupwiseQuantMatmulPlugin
     weightOnlyQuantMatmulPlugin
-    lookupPlugin
+    # lookupPlugin
     loraPlugin
-    mixtureOfExperts)
+    # mixtureOfExperts
+    )
 
 foreach(PLUGIN_ITER ${PLUGIN_LISTS})
   include_directories(${PLUGIN_ITER})

@@ -18,6 +18,8 @@
 #include "tensorrt_llm/common/cudaTypeUtils.cuh"
 #include "tensorrt_llm/common/memoryUtils.h"
 #include "tensorrt_llm/kernels/decoderMaskedMultiheadAttention.h"
+// [ ] Maybe?
+#include "tensorrt_llm/kernels/decoderMaskedMultiheadAttention/decoderMaskedMultiheadAttentionTemplate.h"
 #include "tensorrt_llm/kernels/decoderMaskedMultiheadAttentionUtils.h"
 #include "tensorrt_llm/kernels/gptKernels.h"
 #include "tensorrt_llm/kernels/kvCacheUtils.h"
@@ -112,1179 +114,6 @@ namespace mmha
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <typename T, int Dh_MAX>
-struct Qk_vec_m_
-{
-};
-
-template <>
-struct Qk_vec_m_<float, 32>
-{
-    using Type = float;
-};
-
-template <>
-struct Qk_vec_m_<float, 64>
-{
-    using Type = float2;
-};
-
-template <>
-struct Qk_vec_m_<float, 128>
-{
-    using Type = float4;
-};
-
-template <>
-struct Qk_vec_m_<float, 256>
-{
-    using Type = float4;
-};
-
-template <>
-struct Qk_vec_m_<uint16_t, 32>
-{
-    using Type = uint32_t;
-};
-
-template <>
-struct Qk_vec_m_<uint16_t, 64>
-{
-    using Type = uint32_t;
-};
-
-template <>
-struct Qk_vec_m_<uint16_t, 128>
-{
-    using Type = uint2;
-};
-
-template <>
-struct Qk_vec_m_<uint16_t, 256>
-{
-    using Type = uint4;
-};
-#ifdef ENABLE_BF16
-template <>
-struct Qk_vec_m_<__nv_bfloat16, 32>
-{
-    using Type = __nv_bfloat162;
-};
-
-template <>
-struct Qk_vec_m_<__nv_bfloat16, 64>
-{
-    using Type = __nv_bfloat162;
-};
-
-template <>
-struct Qk_vec_m_<__nv_bfloat16, 128>
-{
-    using Type = bf16_4_t;
-};
-
-template <>
-struct Qk_vec_m_<__nv_bfloat16, 256>
-{
-    using Type = bf16_8_t;
-};
-#endif // ENABLE_BF16
-
-#ifdef ENABLE_FP8
-template <>
-struct Qk_vec_m_<__nv_fp8_e4m3, 32>
-{
-    using Type = fp8_4_t;
-};
-
-template <>
-struct Qk_vec_m_<__nv_fp8_e4m3, 64>
-{
-    using Type = fp8_4_t;
-};
-
-template <>
-struct Qk_vec_m_<__nv_fp8_e4m3, 128>
-{
-    using Type = fp8_4_t;
-};
-
-template <>
-struct Qk_vec_m_<__nv_fp8_e4m3, 256>
-{
-    using Type = fp8_4_t;
-};
-#endif // ENABLE_FP8
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, int Dh>
-struct Qk_vec_k_
-{
-    using Type = typename Qk_vec_m_<T, Dh>::Type;
-};
-#ifdef ENABLE_FP8
-template <>
-struct Qk_vec_k_<__nv_fp8_e4m3, 32>
-{
-    using Type = float4;
-};
-
-template <>
-struct Qk_vec_k_<__nv_fp8_e4m3, 64>
-{
-    using Type = float4;
-};
-
-template <>
-struct Qk_vec_k_<__nv_fp8_e4m3, 128>
-{
-    using Type = float4;
-};
-
-template <>
-struct Qk_vec_k_<__nv_fp8_e4m3, 256>
-{
-    using Type = float4;
-};
-#endif // ENABLE_FP8
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, int V_VEC_SIZE>
-struct V_vec_m_
-{
-};
-
-template <>
-struct V_vec_m_<float, 1>
-{
-    using Type = float;
-};
-
-template <>
-struct V_vec_m_<float, 2>
-{
-    using Type = float2;
-};
-
-template <>
-struct V_vec_m_<float, 4>
-{
-    using Type = float4;
-};
-
-template <>
-struct V_vec_m_<float, 8>
-{
-    using Type = Float8_;
-};
-
-template <>
-struct V_vec_m_<uint16_t, 2>
-{
-    using Type = uint32_t;
-};
-
-template <>
-struct V_vec_m_<uint16_t, 4>
-{
-    using Type = uint2;
-};
-
-template <>
-struct V_vec_m_<uint16_t, 8>
-{
-    using Type = uint4;
-};
-#ifdef ENABLE_BF16
-template <>
-struct V_vec_m_<__nv_bfloat16, 2>
-{
-    using Type = __nv_bfloat162;
-};
-
-template <>
-struct V_vec_m_<__nv_bfloat16, 4>
-{
-    using Type = bf16_4_t;
-};
-
-template <>
-struct V_vec_m_<__nv_bfloat16, 8>
-{
-    using Type = bf16_8_t;
-};
-#endif // ENABLE_BF16
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, int V_VEC_SIZE>
-struct V_vec_k_
-{
-    using Type = typename V_vec_m_<T, V_VEC_SIZE>::Type;
-};
-#ifdef ENABLE_FP8
-template <>
-struct V_vec_k_<__nv_fp8_e4m3, 4>
-{
-    using Type = float4;
-};
-
-template <>
-struct V_vec_k_<__nv_fp8_e4m3, 8>
-{
-    using Type = float4;
-};
-
-template <>
-struct V_vec_k_<__nv_fp8_e4m3, 16>
-{
-    using Type = float4;
-};
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Reuse V_vec traits as key and value share the same layout.
-template <typename T, int K_VEC_SIZE>
-struct K_vec_m_
-{
-    using Type = typename V_vec_m_<T, K_VEC_SIZE>::Type;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, int K_VEC_SIZE>
-struct K_vec_k_
-{
-    using Type = typename K_vec_m_<T, K_VEC_SIZE>::Type;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef MMHA_USE_FP32_ACCUM_FOR_FMA
-template <typename T>
-struct Qk_vec_accum_fp32_
-{
-};
-
-template <>
-struct Qk_vec_accum_fp32_<float>
-{
-    using Type = float;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<float2>
-{
-    using Type = float2;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<float4>
-{
-    using Type = float4;
-};
-
-// template<> struct Qk_vec_accum_fp32_<uint16_t> { using Type = float;        };
-template <>
-struct Qk_vec_accum_fp32_<uint32_t>
-{
-    using Type = float2;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<uint2>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<uint4>
-{
-    using Type = Float8_;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<__nv_bfloat16>
-{
-    using Type = float;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<__nv_bfloat162>
-{
-    using Type = float2;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<bf16_4_t>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct Qk_vec_accum_fp32_<bf16_8_t>
-{
-    using Type = Float8_;
-};
-
-#ifdef ENABLE_FP8
-// template<>
-// struct Qk_vec_accum_fp32_<fp8_2_t> {
-//     using Type = float2;
-// };
-template <>
-struct Qk_vec_accum_fp32_<fp8_4_t>
-{
-    using Type = Float4_;
-};
-
-// template<>
-// struct Qk_vec_accum_fp32_<fp8_8_t> {
-//     using Type = Float4_;
-// };
-#endif // ENABLE_FP8
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-struct K_vec_accum_fp32_
-{
-};
-
-template <>
-struct K_vec_accum_fp32_<float>
-{
-    using Type = float;
-};
-
-template <>
-struct K_vec_accum_fp32_<float2>
-{
-    using Type = float2;
-};
-
-template <>
-struct K_vec_accum_fp32_<float4>
-{
-    using Type = float4;
-};
-
-template <>
-struct K_vec_accum_fp32_<Float8_>
-{
-    using Type = Float8_;
-};
-
-template <>
-struct K_vec_accum_fp32_<uint32_t>
-{
-    using Type = float2;
-};
-
-template <>
-struct K_vec_accum_fp32_<uint2>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct K_vec_accum_fp32_<uint4>
-{
-    using Type = Float8_;
-};
-
-template <>
-struct K_vec_accum_fp32_<__nv_bfloat16>
-{
-    using Type = float;
-};
-
-template <>
-struct K_vec_accum_fp32_<__nv_bfloat162>
-{
-    using Type = float2;
-};
-
-template <>
-struct K_vec_accum_fp32_<bf16_4_t>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct K_vec_accum_fp32_<bf16_8_t>
-{
-    using Type = Float8_;
-};
-#ifdef ENABLE_FP8
-template <>
-struct K_vec_accum_fp32_<__nv_fp8_e4m3>
-{
-    using Type = float;
-};
-
-template <>
-struct K_vec_accum_fp32_<fp8_2_t>
-{
-    using Type = float2;
-};
-
-template <>
-struct K_vec_accum_fp32_<fp8_4_t>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct K_vec_accum_fp32_<fp8_8_t>
-{
-    using Type = Float8_;
-};
-#endif // ENABLE_FP8
-
-template <>
-struct K_vec_accum_fp32_<int8_t>
-{
-    using Type = float;
-};
-
-template <>
-struct K_vec_accum_fp32_<int16_t>
-{
-    using Type = float2;
-};
-
-template <>
-struct K_vec_accum_fp32_<int32_t>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct K_vec_accum_fp32_<int64_t>
-{
-    using Type = Float8_;
-};
-
-#endif // MMHA_USE_FP32_ACCUM_FOR_FMA
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef MMHA_USE_FP32_ACCUM_FOR_OUT
-template <typename T>
-struct V_vec_accum_fp32_
-{
-};
-
-template <>
-struct V_vec_accum_fp32_<float>
-{
-    using Type = float;
-};
-
-template <>
-struct V_vec_accum_fp32_<float2>
-{
-    using Type = float2;
-};
-
-template <>
-struct V_vec_accum_fp32_<float4>
-{
-    using Type = float4;
-};
-
-template <>
-struct V_vec_accum_fp32_<uint32_t>
-{
-    using Type = float2;
-};
-
-template <>
-struct V_vec_accum_fp32_<uint2>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct V_vec_accum_fp32_<uint4>
-{
-    using Type = Float8_;
-};
-#ifdef ENABLE_BF16
-template <>
-struct V_vec_accum_fp32_<__nv_bfloat162>
-{
-    using Type = float2;
-};
-
-template <>
-struct V_vec_accum_fp32_<bf16_4_t>
-{
-    using Type = Float4_;
-};
-
-template <>
-struct V_vec_accum_fp32_<bf16_8_t>
-{
-    using Type = Float8_;
-};
-#endif // ENABLE_BF16
-#ifdef ENABLE_FP8
-// template<>
-// struct V_vec_accum_fp32_<fp8_2_t> {
-//     using Type = float2;
-// };
-template <>
-struct V_vec_accum_fp32_<fp8_4_t>
-{
-    using Type = Float4_;
-};
-
-// template<>
-// struct V_vec_accum_fp32_<fp8_8_t> {
-//     using Type = Float4_;
-// };
-#endif // ENABLE_FP8
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename Tout, typename Tin>
-__inline__ __device__ constexpr Tout vec_conversion(const Tin& x)
-{
-    static_assert(std::is_same<Tout, Tin>::value, "Type mismatch");
-    return x;
-}
-
-template <>
-__inline__ __device__ Float8_ vec_conversion<Float8_, uint4>(const uint4& a)
-{
-    Float8_ fc;
-    fc.x = half2_to_float2(a.x);
-    fc.y = half2_to_float2(a.y);
-    fc.z = half2_to_float2(a.z);
-    fc.w = half2_to_float2(a.w);
-    return fc;
-}
-
-#ifdef ENABLE_BF16
-template <>
-__inline__ __device__ Float8_ vec_conversion<Float8_, bf16_8_t>(const bf16_8_t& a)
-{
-    Float8_ fc;
-    fc.x = bf1622float2(a.x);
-    fc.y = bf1622float2(a.y);
-    fc.z = bf1622float2(a.z);
-    fc.w = bf1622float2(a.w);
-    return fc;
-}
-#endif // ENABLE_BF16
-
-#ifdef ENABLE_FP8
-// fp8_t
-template <>
-__inline__ __device__ float vec_conversion<float, __nv_fp8_e4m3>(const __nv_fp8_e4m3& a)
-{
-    return float(a);
-}
-
-template <>
-__inline__ __device__ __nv_fp8_e4m3 vec_conversion<__nv_fp8_e4m3, float>(const float& a)
-{
-    return __nv_fp8_e4m3(a);
-}
-
-// fp8_2_t
-template <>
-__inline__ __device__ float2 vec_conversion<float2, fp8_2_t>(const fp8_2_t& a)
-{
-    return float2(a);
-}
-
-template <>
-__inline__ __device__ fp8_2_t vec_conversion<fp8_2_t, float2>(const float2& a)
-{
-    return fp8_2_t(a);
-}
-
-// fp8_4_t
-template <>
-__inline__ __device__ float4 vec_conversion<float4, fp8_4_t>(const fp8_4_t& a)
-{
-    return float4(a);
-}
-
-template <>
-__inline__ __device__ fp8_4_t vec_conversion<fp8_4_t, float4>(const float4& a)
-{
-    return fp8_4_t(a);
-}
-#endif // ENABLE_FP8
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <int THREADS_PER_KEY, typename Q_vec, typename K_vec, int N>
-inline __device__ float qk_dot_(const Q_vec (&q)[N], const K_vec (&k)[N])
-{
-#ifdef MMHA_USE_FP32_ACCUM_FOR_FMA
-    using K_vec_accum = typename K_vec_accum_fp32_<K_vec>::Type;
-#else
-    using K_vec_accum = K_vec;
-#endif
-    // Compute the parallel products for Q*K^T (treat vector lanes separately).
-    K_vec_accum qk_vec = mul<K_vec_accum, Q_vec, K_vec>(q[0], k[0]);
-#pragma unroll
-    for (int ii = 1; ii < N; ++ii)
-    {
-        qk_vec = fma(q[ii], k[ii], qk_vec);
-    }
-
-    // Finalize the reduction across lanes.
-    float qk = sum(qk_vec);
-#pragma unroll
-    for (int mask = THREADS_PER_KEY / 2; mask >= 1; mask /= 2)
-    {
-        qk += __shfl_xor_sync(uint32_t(-1), qk, mask);
-    }
-    return qk;
-}
-
-template <int THREADS_PER_KEY, typename Q_vec, typename K_vec, int N>
-inline __device__ float qk_scale_dot_(const Q_vec (&q)[N], const K_vec (&k)[N], const float k_scale)
-{
-#ifdef MMHA_USE_FP32_ACCUM_FOR_FMA
-    using K_vec_accum = typename K_vec_accum_fp32_<K_vec>::Type;
-#else
-    using K_vec_accum = K_vec;
-#endif
-    // Compute the parallel products for Q*K^T (treat vector lanes separately).
-    K_vec_accum k_vec = mul<K_vec_accum, float, K_vec>(k_scale, k[0]);
-    K_vec_accum qk_vec = mul<K_vec_accum, Q_vec, K_vec_accum>(q[0], k_vec);
-#pragma unroll
-    for (int ii = 1; ii < N; ++ii)
-    {
-        K_vec_accum k_vec = mul<K_vec_accum, float, K_vec>(k_scale, k[ii]);
-        qk_vec = fma(q[ii], k_vec, qk_vec);
-    }
-
-    // Finalize the reduction across lanes.
-    float qk = sum(qk_vec);
-#pragma unroll
-    for (int mask = THREADS_PER_KEY / 2; mask >= 1; mask /= 2)
-    {
-        qk += __shfl_xor_sync(uint32_t(-1), qk, mask);
-    }
-    return qk;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, int THREADS_PER_KEY>
-struct Qk_dot
-{
-    template <typename Q_vec, typename K_vec, int N>
-    static inline __device__ float dot(const Q_vec (&q)[N], const K_vec (&k)[N])
-    {
-        return qk_dot_<THREADS_PER_KEY>(q, k);
-    }
-
-    template <typename Q_vec, typename K_vec, int N>
-    static inline __device__ float scale_dot(const Q_vec (&q)[N], const K_vec (&k)[N], const float k_scale)
-    {
-#ifdef MMHA_USE_HMMA
-        static_assert("HMMA doesn't support k scales");
-#endif // MMHA_USE_HMMA
-        return qk_scale_dot_<THREADS_PER_KEY>(q, k, k_scale);
-    }
-
-    template <int WARP_SIZE = 32>
-    static inline __device__ bool is_leader(const int tidx)
-    {
-        return (tidx % THREADS_PER_KEY) == 0;
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename K_vec>
-inline __device__ void hmma_fp32(float4& c, const K_vec& a, K_vec b)
-{
-    // Not supported.
-    assert(false);
-}
-
-template <>
-inline __device__ void hmma_fp32(float4& c, const uint32_t& a, uint32_t b)
-{
-    asm volatile(
-        "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 \n"
-        "    {%0, %1, %2, %3}, \n"
-        "    {%4, %5}, \n"
-        "    {%6}, \n"
-        "    {%0, %1, %2, %3}; \n"
-        : "+f"(c.x), "+f"(c.y), "+f"(c.z), "+f"(c.w)
-        : "r"(a), "r"(a), "r"(b));
-}
-
-template <>
-inline __device__ void hmma_fp32(float4& c, const uint2& a, uint2 b)
-{
-    hmma_fp32(c, a.x, b.x);
-    hmma_fp32(c, a.y, b.y);
-}
-
-template <>
-inline __device__ void hmma_fp32(float4& c, const uint4& a, uint4 b)
-{
-    hmma_fp32(c, a.x, b.x);
-    hmma_fp32(c, a.y, b.y);
-    hmma_fp32(c, a.z, b.z);
-    hmma_fp32(c, a.w, b.w);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename K_vec, int THREADS_PER_KEY, int N>
-inline __device__ float qk_hmma_dot_(const K_vec (&q)[N], const K_vec (&k)[N])
-{
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 750
-
-    // Each quad computes its partial result.
-    float4 acc = make_float4(0.f, 0.f, 0.f, 0.f);
-
-#pragma unroll
-    for (int ii = 0; ii < N; ++ii)
-    {
-        hmma_fp32(acc, q[ii], k[ii]);
-    }
-
-    // The position inside the warp.
-    int lane = threadIdx.x % 32;
-
-    // The position inside the HMMA instruction.
-    int row = lane / 4;
-    int col = lane % 4 * 2;
-
-    // The result. Only 1 thread in each quad owns a valid value.
-    //
-    // Row 0, it's lane  0 (col 0) in acc.x.
-    // Row 1, it's lane  4 (col 0) in acc.y.
-    // Row 2, it's lane  9 (col 2) in acc.x.
-    // Row 3, it's lane 13 (col 2) in acc.y.
-    // Row 4, it's lane 18 (col 4) in acc.x.
-    // Row 5, it's lane 22 (col 4) in acc.y.
-    // Row 6, it's lane 27 (col 6) in acc.x.
-    // Row 7, it's lane 31 (col 6) in acc.y.
-    //
-    float result = (row == col) ? acc.x : acc.y;
-
-    // Do the reduction inside the warp.
-    if (THREADS_PER_KEY > 4)
-    {
-        result += __shfl_xor_sync(unsigned(-1), result, 4);
-    }
-    if (THREADS_PER_KEY > 8)
-    {
-        result += __shfl_xor_sync(unsigned(-1), result, 9);
-    }
-    if (THREADS_PER_KEY > 16)
-    {
-        result += __shfl_xor_sync(unsigned(-1), result, 18);
-    }
-
-    // The warp leader has the correct value.
-    return result;
-
-#else // !defined(__CUDA_ARCH__) || __CUDA_ARCH__ < 750
-    return 0.f;
-#endif
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <int THREADS_PER_KEY>
-struct Qk_dot<uint16_t, THREADS_PER_KEY>
-{
-    template <typename Q_vec, typename K_vec, int N>
-    static inline __device__ float dot(const Q_vec (&q)[N], const K_vec (&k)[N])
-    {
-#if __CUDA_ARCH__ >= 750 && defined(MMHA_USE_HMMA)
-        return qk_hmma_dot_<K_vec, THREADS_PER_KEY, N>(q, k);
-#else
-        return qk_dot_<THREADS_PER_KEY>(q, k);
-#endif // defined MMHA_USE_HMMA
-    }
-
-    template <typename Q_vec, typename K_vec, int N>
-    static inline __device__ float scale_dot(const Q_vec (&q)[N], const K_vec (&k)[N], const float k_scale)
-    {
-#ifdef MMHA_USE_HMMA
-        static_assert("HMMA doesn't support k scales");
-#endif // MMHA_USE_HMMA
-        return qk_scale_dot_<THREADS_PER_KEY>(q, k, k_scale);
-    }
-
-    template <int WARP_SIZE = 32>
-    static inline __device__ bool is_leader(const int tidx)
-    {
-        // Use HMMA.FP32, leader threads are in the diagonal roughly (0, 4, 9, 13, 18, 22, 27, 31).
-#if __CUDA_ARCH__ >= 750 && defined(MMHA_USE_HMMA)
-        int leader = 0;
-        // The thread position inside the warp.
-        int lane = tidx % WARP_SIZE;
-        if (THREADS_PER_KEY == 4)
-        {
-            leader = int(lane / 8);
-        }
-        else
-        {
-            leader = int(lane / THREADS_PER_KEY) * int(THREADS_PER_KEY / 8);
-        }
-#else
-        const bool leader = 0;
-#endif // defined MMHA_USE_HMMA
-        return (tidx % THREADS_PER_KEY) == leader;
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename Tk, typename V_vec_accum, typename V_vec_m, bool INT8_KV_CACHE, bool FP8_KV_CACHE>
-inline __device__ void Logit_value_fma(
-    V_vec_accum& out, const Tk* logits_smem, const V_vec_m& v_vec, const float v_scale, const bool is_mask)
-{
-#if defined(MMHA_USE_FP32_ACCUM_FOR_LOGITS)
-    float logit = is_mask ? 0.f : reinterpret_cast<float*>(logits_smem)[0];
-    if constexpr (INT8_KV_CACHE)
-    {
-        V_vec_accum v_vec_ = mul<V_vec_accum, float, V_vec_m>(v_scale, v_vec);
-        out = fma(logit, cast_to_float(v_vec_), out);
-    }
-    else if constexpr (FP8_KV_CACHE)
-    {
-#ifdef MMHA_FP8_SCALE_P_INSTEAD_OF_V
-        out = fma(logit, cast_to_float(v_vec), out);
-#else
-        V_vec_accum v_vec_ = mul<V_vec_accum, float, V_vec_m>(v_scale, v_vec);
-        out = fma(logit, cast_to_float(v_vec_), out);
-#endif // MMHA_FP8_SCALE_P_INSTEAD_OF_V
-    }
-    else
-    {
-        out = fma(logit, cast_to_float(v_vec), out);
-    }
-#else // MMHA_USE_FP32_ACCUM_FOR_LOGITS
-    Tk logit = is_mask ? Tk(0.f) : logits_smem[0];
-    if constexpr (INT8_KV_CACHE)
-    {
-        V_vec_accum v_vec_ = mul<V_vec_accum, float, V_vec_m>(v_scale, v_vec);
-        out = fma(logit, v_vec_, out);
-    }
-    else if constexpr (FP8_KV_CACHE)
-    {
-#ifdef MMHA_FP8_SCALE_P_INSTEAD_OF_V
-        out = fma(logit, v_vec, out);
-#else
-        V_vec_accum v_vec_ = mul<V_vec_accum, float, V_vec_m>(v_scale, v_vec);
-        out = fma(logit, v_vec_, out);
-#endif // MMHA_FP8_SCALE_P_INSTEAD_OF_V
-    }
-    else
-    {
-        out = fma(logit, v_vec, out);
-    }
-#endif // MMHA_USE_FP32_ACCUM_FOR_LOGITS
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <int WARPS_PER_BLOCK, int WARP_SIZE = 32>
-inline __device__ float block_sum(float* red_smem, float sum)
-{
-
-    // Decompose the thread index into warp / lane.
-    int warp = threadIdx.x / WARP_SIZE;
-    int lane = threadIdx.x % WARP_SIZE;
-
-// Compute the sum per warp.
-#pragma unroll
-    for (int mask = WARP_SIZE / 2; mask >= 1; mask /= 2)
-    {
-        sum += __shfl_xor_sync(uint32_t(-1), sum, mask);
-    }
-
-    // Warp leaders store the data to shared memory.
-    if (lane == 0)
-    {
-        red_smem[warp] = sum;
-    }
-
-    // Make sure the data is in shared memory.
-    __syncthreads();
-
-    // The warps compute the final sums.
-    if (lane < WARPS_PER_BLOCK)
-    {
-        sum = red_smem[lane];
-    }
-
-// Parallel reduction inside the warp.
-#pragma unroll
-    for (int mask = WARPS_PER_BLOCK / 2; mask >= 1; mask /= 2)
-    {
-        sum += __shfl_xor_sync(uint32_t(-1), sum, mask);
-    }
-
-    // Broadcast to other threads.
-    return __shfl_sync(uint32_t(-1), sum, 0);
-}
-
-#if defined(MMHA_USE_FP32_ACCUM_FOR_LOGITS)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ float cast_to_float(float u)
-{
-    return u;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ float2 cast_to_float(float2 u)
-{
-    return u;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ float4 cast_to_float(float4 u)
-{
-    return u;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ Float4_ cast_to_float(Float4_ u)
-{
-    return u;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ Float8_ cast_to_float(Float8_ u)
-{
-    return u;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ float2 cast_to_float(uint32_t u)
-{
-    return half2_to_float2(u);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ Float4_ cast_to_float(uint2 u)
-{
-    Float4_ tmp;
-    tmp.x = half2_to_float2(u.x);
-    tmp.y = half2_to_float2(u.y);
-    return tmp;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ Float8_ cast_to_float(uint4 u)
-{
-    Float8_ tmp;
-    tmp.x = half2_to_float2(u.x);
-    tmp.y = half2_to_float2(u.y);
-    tmp.z = half2_to_float2(u.z);
-    tmp.w = half2_to_float2(u.w);
-    return tmp;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ float2 cast_to_float(__nv_bfloat162 u)
-{
-    float2 tmp;
-    tmp = __bfloat1622float2(u);
-    return tmp;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ Float4_ cast_to_float(bf16_4_t u)
-{
-    Float4_ tmp;
-    tmp.x = __bfloat1622float2(u.x);
-    tmp.y = __bfloat1622float2(u.y);
-    return tmp;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ Float8_ cast_to_float(bf16_8_t u)
-{
-    Float8_ tmp;
-    tmp.x = __bfloat1622float2(u.x);
-    tmp.y = __bfloat1622float2(u.y);
-    tmp.z = __bfloat1622float2(u.z);
-    tmp.w = __bfloat1622float2(u.w);
-    return tmp;
-}
-
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-inline __device__ __host__ T divUp(T m, T n)
-{
-    return (m + n - 1) / n;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-inline __device__ __host__ T div(T m, T n)
-{
-    return m / n;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-struct kernel_type_t
-{
-    using Type = T;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Compute the largest supported head size (dh_max). It must be the smallest power-of-2 that is not strictly smaller
-// than the head size (dh).
-inline __device__ __host__ constexpr unsigned dh_max(unsigned dh)
-{
-    return next_power_of_two(mmha::const_max(dh, 32u));
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-inline __device__ __host__ constexpr unsigned threads_per_value(unsigned dh_max)
-{
-    return dh_max * sizeof(T) / 16;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, unsigned Dh_MAX>
-inline __device__ __host__ constexpr unsigned threads_per_key()
-{
-    // Since we want to perform the reduction entirely within a warp, the number of threads per key
-    // is capped at 32.
-    constexpr unsigned threads = (unsigned) (Dh_MAX * sizeof(T) / 16u);
-    if ((threads & (threads - 1)) != 0)
-    {
-        assert(false); // Not a power of two.
-    }
-    return std::min(32u, threads);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline __device__ constexpr uint32_t shfl_mask(int threads)
-{
-    assert(threads <= 32);
-    return threads == 32 ? -1u : (1u << threads) - 1u;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <typename T, typename T_VEC, unsigned VECS_PER_CHUNK>
-__device__ inline constexpr uint2 chunk_index(unsigned tidx)
-{
-    // The chunk associated with the thread.
-    auto const idx_chunk = tidx / VECS_PER_CHUNK;
-
-    // The position of the T_VEC vector in that chunk associated with the thread.
-    static_assert(sizeof(T_VEC) % sizeof(T) == 0);
-    unsigned constexpr kVecSize{sizeof(T_VEC) / sizeof(T)};
-    auto const idx_vec = (tidx % VECS_PER_CHUNK) * kVecSize;
-
-    return uint2{idx_chunk, idx_vec};
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// CHECKLIST
-template <typename T, int MAX_K>
-struct TopK
-{
-    int p[MAX_K]; // CHECKLIST: Array to store indices of top-K elements
-    T u[MAX_K];   // CHECKLIST: Array to store values of top-K elements
-
-    __device__ __forceinline__ void insert(T elem, int elem_id)
-    {
-        // CHECKLIST: Insertion Condition
-        if (elem_id < 0)
-        {
-            return;
-        }
-
-        if (elem > u[MAX_K - 1] || (p[MAX_K - 1] == -1) || ((elem == u[MAX_K - 1]) && (elem_id < p[MAX_K - 1])))
-        // if (elem > u[MAX_K-1] || ((elem == u[MAX_K-1]) && (elem_id < p[MAX_K-1])))
-        {
-            u[MAX_K - 1] = elem;
-            p[MAX_K - 1] = elem_id;
-        }
-
-        // CHECKLIST: Bubble up the Element
-        for (int k = MAX_K - 2; k >= 0; --k)
-        {
-            if ((u[k + 1] > u[k]) || (p[k] == -1) || ((u[k + 1] == u[k]) && (p[k + 1] < p[k])))
-            // if ((u[k+1] > u[k]) || ((u[k+1] == u[k])&&(p[k+1] < p[k])))
-            {
-                T u2 = u[k];
-                int p2 = p[k];
-                u[k] = u[k + 1];
-                p[k] = p[k + 1];
-                u[k + 1] = u2;
-                p[k + 1] = p2;
-            }
-        }
-    }
-
-    __device__ __forceinline__ void init()
-    {
-        const bool IS_FP16 = std::is_same<T, half>::value;
-        const T MAX_T_VAL = (IS_FP16) ? 65504.F : FLT_MAX;
-
-        for (int i = 0; i < MAX_K; i++)
-        {
-            p[i] = -1;
-            u[i] = -MAX_T_VAL;
-        }
-    }
-};
-
-template <typename T, int MAX_K>
-__device__ __forceinline__ TopK<T, MAX_K> reduce_topk_op(const TopK<T, MAX_K>& a, const TopK<T, MAX_K>& b)
-{
-    TopK<T, MAX_K> res = a;
-    for (int i = 0; i < MAX_K; ++i)
-        res.insert(b.u[i], b.p[i]);
-    return res;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 template <
     // The type of the inputs. Supported types: float, uint16_t, nv_bfloat16.
     typename T,
@@ -1320,8 +149,9 @@ __global__ void masked_multihead_attention_kernel_1(
     static constexpr bool ENABLE_8BITS_CACHE = sizeof(Tcache) == 1;
     // FP8 KV Cache.
     static constexpr bool FP8_KV_CACHE = std::is_same<Tcache, __nv_fp8_e4m3>::value;
+    // [x] Never used
     // INT8 KV Cache.
-    static constexpr bool INT8_KV_CACHE = std::is_same<Tcache, int8_t>::value;
+    // static constexpr bool INT8_KV_CACHE = std::is_same<Tcache, int8_t>::value;
 
     // The size of a warp.
     constexpr unsigned WARP_SIZE{32};
@@ -1330,7 +160,8 @@ __global__ void masked_multihead_attention_kernel_1(
 
     // The maximum hidden size per head.
     constexpr auto Dh_MAX = dh_max(Dh);
-    constexpr bool IS_Dh_MAX = Dh == Dh_MAX;
+    // [x] Never used
+    // constexpr bool IS_Dh_MAX = Dh == Dh_MAX;
     static_assert(Dh_MAX >= WARP_SIZE);
     static_assert(Dh_MAX >= Dh);
 
@@ -1357,23 +188,25 @@ __global__ void masked_multihead_attention_kernel_1(
 
     __shared__ float qk_current_smem[1];
 
+    // [x] Never used
     // The shared memory for the logits. For FP32, that's the same buffer as qk_smem.
-    char* logits_smem_ = smem_;
-#ifndef MMHA_USE_FP32_ACCUM_FOR_LOGITS
-    if (sizeof(Tk) != 4)
-    {
-        const auto max_timesteps = DO_CROSS_ATTENTION ? cyclic_kv_cache_len : min(timestep, cyclic_kv_cache_len);
-        logits_smem_ += divUp(max_timesteps + 1, 4u) * 16;
-    }
-    Tk* logits_smem = reinterpret_cast<Tk*>(logits_smem_);
-#else
-    float* logits_smem = reinterpret_cast<float*>(logits_smem_);
-#endif
+    //     char* logits_smem_ = smem_;
+    // #ifndef MMHA_USE_FP32_ACCUM_FOR_LOGITS
+    //     if (sizeof(Tk) != 4)
+    //     {
+    //         const auto max_timesteps = DO_CROSS_ATTENTION ? cyclic_kv_cache_len : min(timestep, cyclic_kv_cache_len);
+    //         logits_smem_ += divUp(max_timesteps + 1, 4u) * 16;
+    //     }
+    //     Tk* logits_smem = reinterpret_cast<Tk*>(logits_smem_);
+    // #else
+    //     float* logits_smem = reinterpret_cast<float*>(logits_smem_);
+    // #endif
 
     __shared__ Tk logits_current_smem[1];
 
+    // [x] Never used
     // The shared memory to do the final reduction for the output values. Reuse qk_smem.
-    Tk* out_smem = reinterpret_cast<Tk*>(smem_);
+    // Tk* out_smem = reinterpret_cast<Tk*>(smem_);
 
     // The shared memory buffers for the block-wide reductions. One for max, one for sum.
     __shared__ float red_smem[WARPS_PER_BLOCK * 2];
@@ -1508,8 +341,6 @@ __global__ void masked_multihead_attention_kernel_1(
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     const bool load_qkv_quant = params.qkv_scale_quant_orig != nullptr;
     const bool write_attention_quant = params.attention_out_scale_orig_quant != nullptr;
-
-    // CHECKLIST ============================================================================================
 
     // Quant/Dequant scales for 8bits kv cache.
     using T_scale = typename kv_cache_scale_type_t<T, Tcache>::Type;
@@ -1893,13 +724,11 @@ __global__ void masked_multihead_attention_kernel_1(
         ? divUp(timesteps_per_block, K_PER_WARP) * K_PER_WARP
         : divUp(static_cast<unsigned>(kv_loop_length), K_PER_WARP) * K_PER_WARP;
 
-    // [x] For the offset of qk_values
     const auto max_attention_window_size = params.max_attention_window_size;
-
     // Iterate over the keys/timesteps to compute the various (Q*K^T)_{ti} values.
     // Note max_attention_window_size is maximum of cyclic_attention_window_size among all layers.
     // By default, you can assume that they are the same.
-    const auto bi_seq_len_offset = static_cast<std::size_t>(batch_beam_idx) * params.max_attention_window_size;
+    const auto bi_seq_len_offset = static_cast<std::size_t>(batch_beam_idx) * max_attention_window_size;
     // Beam indices are based on the max_attention_window_size while each layer may have different
     // cyclic_attention_window_size So we need to rebuild the beam_indices if max_attention_window_size is not equal to
     // cyclic_attention_window_size.
@@ -2032,6 +861,11 @@ __global__ void masked_multihead_attention_kernel_1(
                 continue;
             }
 
+            if (is_active && is_leader && hi == 0)
+            {
+                printf("qk_[%d]: %f\n", local_ti, qk_);
+            }
+
             // Add the ALiBi bias. (ki - qi) * slope[hi].
             //
             // The padding tokens are located between the input context and the generated tokens.
@@ -2052,7 +886,7 @@ __global__ void masked_multihead_attention_kernel_1(
                 // Calculate the max for softmax.
                 qk_max = fmaxf(qk_max, qk_);
                 // // DEBUGGING
-                // printf("threadIdx.x: %d, ti: %d, Local ti: %d\n", threadIdx.x, ti, local_ti);
+
                 // Store the product to shared memory.
                 qk_smem[local_ti] = qk_;
             }
@@ -2239,14 +1073,6 @@ __global__ void masked_multihead_attention_kernel_1(
     // Make sure the products are in shared memory.
     __syncthreads();
 
-    // [x] Store the values in qk_smem into qk_values (Shared memory -> Global memory)
-    int qk_values_offset = hi * max_attention_window_size;
-#pragma unroll
-    for (int out_i = tidx; out_i < kv_loop_length; out_i += THREADS_PER_BLOCK)
-    {
-        convert_from_float(reinterpret_cast<float*>(&params.qk_values[qk_values_offset + out_i]), qk_smem[out_i]);
-    }
-
     // After the syncthreads, the target k position (cyclic kv cache) should also have been used by the k loop.
     // Write the K values to the global memory cache.
     //
@@ -2288,13 +1114,33 @@ __global__ void masked_multihead_attention_kernel_1(
         qk_max = fmaxf(qk_max, __shfl_xor_sync(uint32_t(-1), qk_max, mask));
     }
 
-    // [x] Store the qk_max into qk_max_values (register -> Global memory)
-    if (lane == 0)
+    // [ ] Store qk_values and qk_max_values
+    const int qk_values_offset = hi * max_attention_window_size;
+#pragma unroll
+    for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
     {
-        convert_from_float(reinterpret_cast<float*>(&params.qk_max_values[hi]), qk_max);
+        params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
+    }
+    if (tidx % THREADS_PER_BLOCK == 0)
+    {
+        params.qk_max_values[hi] = qk_max;
     }
 
-    // CHECKLIST: Split-Point======================================================================================
+    // [ ] Compare
+    if (hi == 0)
+    {
+        if (tidx == 0)
+        {
+            printf("In the original kernel\n");
+            printf("qk_max: %f\n", qk_max);
+        }
+
+#pragma unroll
+        for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
+        {
+            printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
+        }
+    }
 }
 
 } // namespace mmha

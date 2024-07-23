@@ -153,6 +153,7 @@ def main(build_type: str = "Release",
     build_pybind = "ON" if python_bindings else "OFF"
     bindings_lib = "bindings" if python_bindings else ""
     benchmarks_lib = "benchmarks" if benchmarks else ""
+    
 
     with working_directory(build_dir):
         cmake_def_args = " ".join(cmake_def_args)
