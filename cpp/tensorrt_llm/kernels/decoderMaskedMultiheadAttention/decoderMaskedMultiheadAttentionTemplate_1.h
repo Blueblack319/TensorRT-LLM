@@ -861,11 +861,6 @@ __global__ void masked_multihead_attention_kernel_1(
                 continue;
             }
 
-            if (is_active && is_leader && hi == 0)
-            {
-                printf("qk_[%d]: %f\n", local_ti, qk_);
-            }
-
             // Add the ALiBi bias. (ki - qi) * slope[hi].
             //
             // The padding tokens are located between the input context and the generated tokens.
@@ -878,6 +873,10 @@ __global__ void masked_multihead_attention_kernel_1(
             // All the threads do the work even if it's not relevant to avoid divergence.
             qk_ += linear_bias_slope * (local_time_now - tlength) + relative_attention_bias;
 
+            if (is_active && is_leader && hi == 0)
+            {
+                printf("qk_[%d]: %f\n", local_ti, qk_);
+            }
             // CHECKLIST
             // There's one qk value per timestep.
             // Make sure only leader threads stores qk value within the bound.
@@ -1131,7 +1130,7 @@ __global__ void masked_multihead_attention_kernel_1(
     {
         if (tidx == 0)
         {
-            printf("In the original kernel\n");
+            printf("In the first kernel\n");
             printf("qk_max: %f\n", qk_max);
         }
 

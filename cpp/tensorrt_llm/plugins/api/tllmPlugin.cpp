@@ -19,7 +19,7 @@
 #include "tensorrt_llm/common/stringUtils.h"
 #include "tensorrt_llm/runtime/tllmLogger.h"
 
-#include "tensorrt_llm/plugins/bertAttentionPlugin/bertAttentionPlugin.h"
+// #include "tensorrt_llm/plugins/bertAttentionPlugin/bertAttentionPlugin.h"
 #include "tensorrt_llm/plugins/gemmPlugin/gemmPlugin.h"
 #include "tensorrt_llm/plugins/gptAttentionPlugin/gptAttentionPlugin.h"
 // [x] For a custom plugin
@@ -27,9 +27,9 @@
 #include "tensorrt_llm/plugins/identityPlugin/identityPlugin.h"
 #include "tensorrt_llm/plugins/layernormPlugin/layernormPlugin.h"
 #include "tensorrt_llm/plugins/layernormQuantizationPlugin/layernormQuantizationPlugin.h"
-#include "tensorrt_llm/plugins/lookupPlugin/lookupPlugin.h"
+// #include "tensorrt_llm/plugins/lookupPlugin/lookupPlugin.h"
 #include "tensorrt_llm/plugins/loraPlugin/loraPlugin.h"
-#include "tensorrt_llm/plugins/mixtureOfExperts/mixtureOfExpertsPlugin.h"
+// #include "tensorrt_llm/plugins/mixtureOfExperts/mixtureOfExpertsPlugin.h"
 #if ENABLE_MULTI_DEVICE
 #include "tensorrt_llm/plugins/ncclPlugin/allgatherPlugin.h"
 #include "tensorrt_llm/plugins/ncclPlugin/allreducePlugin.h"
@@ -40,9 +40,9 @@
 #include "tensorrt_llm/plugins/quantizeTensorPlugin/quantizeTensorPlugin.h"
 #include "tensorrt_llm/plugins/rmsnormPlugin/rmsnormPlugin.h"
 #include "tensorrt_llm/plugins/rmsnormQuantizationPlugin/rmsnormQuantizationPlugin.h"
-#include "tensorrt_llm/plugins/smoothQuantGemmPlugin/smoothQuantGemmPlugin.h"
-#include "tensorrt_llm/plugins/weightOnlyGroupwiseQuantMatmulPlugin/weightOnlyGroupwiseQuantMatmulPlugin.h"
-#include "tensorrt_llm/plugins/weightOnlyQuantMatmulPlugin/weightOnlyQuantMatmulPlugin.h"
+// #include "tensorrt_llm/plugins/smoothQuantGemmPlugin/smoothQuantGemmPlugin.h"
+// #include "tensorrt_llm/plugins/weightOnlyGroupwiseQuantMatmulPlugin/weightOnlyGroupwiseQuantMatmulPlugin.h"
+// #include "tensorrt_llm/plugins/weightOnlyQuantMatmulPlugin/weightOnlyQuantMatmulPlugin.h"
 
 #include <array>
 #include <cstdlib>
@@ -135,12 +135,12 @@ extern "C"
     [[maybe_unused]] nvinfer1::IPluginCreator* const* getPluginCreators(std::int32_t& nbCreators)
     {
         static tensorrt_llm::plugins::IdentityPluginCreator identityPluginCreator;
-        static tensorrt_llm::plugins::BertAttentionPluginCreator bertAttentionPluginCreator;
+        // static tensorrt_llm::plugins::BertAttentionPluginCreator bertAttentionPluginCreator;
         static tensorrt_llm::plugins::GPTAttentionPluginCreator gptAttentionPluginCreator;
         // [x] For a custom plugin
         static tensorrt_llm::plugins::GPTAttentionCustomPluginCreator gptAttentionCustomPluginCreator;
         static tensorrt_llm::plugins::GemmPluginCreator gemmPluginCreator;
-        static tensorrt_llm::plugins::MixtureOfExpertsPluginCreator moePluginCreator;
+        // static tensorrt_llm::plugins::MixtureOfExpertsPluginCreator moePluginCreator;
 #if ENABLE_MULTI_DEVICE
         static tensorrt_llm::plugins::SendPluginCreator sendPluginCreator;
         static tensorrt_llm::plugins::RecvPluginCreator recvPluginCreator;
@@ -149,25 +149,25 @@ extern "C"
 #endif // ENABLE_MULTI_DEVICE
         static tensorrt_llm::plugins::LayernormPluginCreator layernormPluginCreator;
         static tensorrt_llm::plugins::RmsnormPluginCreator rmsnormPluginCreator;
-        static tensorrt_llm::plugins::SmoothQuantGemmPluginCreator smoothQuantGemmPluginCreator;
+        // static tensorrt_llm::plugins::SmoothQuantGemmPluginCreator smoothQuantGemmPluginCreator;
         static tensorrt_llm::plugins::LayernormQuantizationPluginCreator layernormQuantizationPluginCreator;
         static tensorrt_llm::plugins::QuantizePerTokenPluginCreator quantizePerTokenPluginCreator;
         static tensorrt_llm::plugins::QuantizeTensorPluginCreator quantizeTensorPluginCreator;
         static tensorrt_llm::plugins::RmsnormQuantizationPluginCreator rmsnormQuantizationPluginCreator;
-        static tensorrt_llm::plugins::WeightOnlyGroupwiseQuantMatmulPluginCreator
-            weightOnlyGroupwiseQuantMatmulPluginCreator;
-        static tensorrt_llm::plugins::WeightOnlyQuantMatmulPluginCreator weightOnlyQuantMatmulPluginCreator;
-        static tensorrt_llm::plugins::LookupPluginCreator lookupPluginCreator;
+        // static tensorrt_llm::plugins::WeightOnlyGroupwiseQuantMatmulPluginCreator
+        //     weightOnlyGroupwiseQuantMatmulPluginCreator;
+        // static tensorrt_llm::plugins::WeightOnlyQuantMatmulPluginCreator weightOnlyQuantMatmulPluginCreator;
+        // static tensorrt_llm::plugins::LookupPluginCreator lookupPluginCreator;
         static tensorrt_llm::plugins::LoraPluginCreator loraPluginCreator;
 
         static std::array pluginCreators = {
             creatorPtr(identityPluginCreator),
-            creatorPtr(bertAttentionPluginCreator),
+            // creatorPtr(bertAttentionPluginCreator),
             creatorPtr(gptAttentionPluginCreator),
             // [x] For a custom plugin
             creatorPtr(gptAttentionCustomPluginCreator),
             creatorPtr(gemmPluginCreator),
-            creatorPtr(moePluginCreator),
+        // creatorPtr(moePluginCreator),
 #if ENABLE_MULTI_DEVICE
             creatorPtr(sendPluginCreator),
             creatorPtr(recvPluginCreator),
@@ -176,14 +176,14 @@ extern "C"
 #endif // ENABLE_MULTI_DEVICE
             creatorPtr(layernormPluginCreator),
             creatorPtr(rmsnormPluginCreator),
-            creatorPtr(smoothQuantGemmPluginCreator),
+            // creatorPtr(smoothQuantGemmPluginCreator),
             creatorPtr(layernormQuantizationPluginCreator),
             creatorPtr(quantizePerTokenPluginCreator),
             creatorPtr(quantizeTensorPluginCreator),
             creatorPtr(rmsnormQuantizationPluginCreator),
-            creatorPtr(weightOnlyGroupwiseQuantMatmulPluginCreator),
-            creatorPtr(weightOnlyQuantMatmulPluginCreator),
-            creatorPtr(lookupPluginCreator),
+            // creatorPtr(weightOnlyGroupwiseQuantMatmulPluginCreator),
+            // creatorPtr(weightOnlyQuantMatmulPluginCreator),
+            // creatorPtr(lookupPluginCreator),
             creatorPtr(loraPluginCreator),
         };
         nbCreators = pluginCreators.size();
