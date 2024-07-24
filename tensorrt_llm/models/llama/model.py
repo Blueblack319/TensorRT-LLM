@@ -126,7 +126,6 @@ class LLaMADecoderLayer(Module):
         hidden_states = self.input_layernorm(hidden_states)
         if self._layer_id == 0:
             self.register_network_output(f"norm0", hidden_states)
-
         attention_output = self.attention(hidden_states,
                                           attention_mask=attention_mask,
                                           use_cache=use_cache,
@@ -134,7 +133,6 @@ class LLaMADecoderLayer(Module):
                                           attention_params=attention_params,
                                           workspace=all_reduce_workspace,
                                           lora_layer_params=lora_layer_params)
-
         if use_cache:
             attention_output, presents = attention_output
         if self._layer_id == 0:
@@ -152,7 +150,6 @@ class LLaMADecoderLayer(Module):
                                  lora_layer_params=lora_layer_params)
         if self._layer_id == 0:
             self.register_network_output(f"mlp", hidden_states)
-
         hidden_states = residual + hidden_states
         if use_cache:
             return (hidden_states, presents)
@@ -262,7 +259,6 @@ class LLaMAModel(Module):
         else:
             hidden_states = recv(hidden_states, self.mapping.prev_pp_rank())
         self.register_network_output(f"embd", hidden_states)
-        print("model.py\n")
 
         for layer_idx, (
                 layer, past, pointer, host_pointer,
@@ -274,6 +270,7 @@ class LLaMAModel(Module):
             lora_layer_params = None
             if lora_params.lora_ranks is not None:
                 lora_layer_params = lora_params.get_layer_params(layer_idx)
+
 
             hidden_states = layer(
                 hidden_states,

@@ -176,13 +176,10 @@ inline void multi_block_grid_setup(dim3& grid, const Multihead_attention_params<
         TLLM_CHECK_WITH_INFO(                                                                                          \
             res == cudaSuccess, "Sequence Length is too long for the MMHA kernel (not enough shared memory).");        \
     }                                                                                                                  \
-    printf("Launch the first kernel, current timestep: %d, multi-block: %s\n", params.timestep,                        \
-        ENABLE_MULTI_BLOCK ? "True" : "False");                                                                        \
     mmha::masked_multihead_attention_kernel_1<T, T_cache, KVCacheBuffer, Dh, DYNAMIC_THDS_PER_BLOCK,                   \
         KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, ENABLE_MULTI_BLOCK>                                           \
         <<<grid, DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz, stream>>>(params, kv_cache_buffer);                          \
     cudaDeviceSynchronize();                                                                                           \
-    printf("Launch the second kernel\n");                                                                              \
     mmha::masked_multihead_attention_kernel_2<T, T_cache, KVCacheBuffer, Dh, DYNAMIC_THDS_PER_BLOCK,                   \
         KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, ENABLE_MULTI_BLOCK>                                           \
         <<<grid, DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz, stream>>>(params, kv_cache_buffer);
@@ -283,7 +280,15 @@ void mmha_launch_kernel_ex(
         }
         else
         {
+            // [ ] Kernel Beginnig
+            printf(
+                "current timestep: %d, batch_size: %d, stride: %d, beam_width: %d, max_attention_window_size: %d, "
+                "cyclic_attention_window_size: %d, num_heads: %d, num_kv_heads: %d, hidden_size_per_head: %d\n",
+                params.timestep, params.batch_size, params.stride, params.beam_width, params.max_attention_window_size,
+                params.cyclic_attention_window_size, params.num_heads, params.num_kv_heads,
+                params.hidden_size_per_head);
             MMHA_KERNEL(512, false);
+            printf("END\N");
         }
         break;
     case 1024:

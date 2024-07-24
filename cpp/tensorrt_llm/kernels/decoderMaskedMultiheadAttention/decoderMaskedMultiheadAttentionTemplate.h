@@ -71,7 +71,6 @@ namespace kernels
 
 namespace mmha
 {
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //
@@ -2046,12 +2045,6 @@ __global__ void masked_multihead_attention_kernel(
             {
                 // Calculate the max for softmax.
                 qk_max = fmaxf(qk_max, qk_);
-                // // DEBUGGING
-                if (hi == 0)
-                {
-                    printf("qk_smem[%d]: %f\n", local_ti, qk_);
-                }
-                // printf("threadIdx.x: %d, ti: %d, Local ti: %d\n", threadIdx.x, ti, local_ti);
                 // Store the product to shared memory.
                 qk_smem[local_ti] = qk_;
             }
@@ -2060,7 +2053,6 @@ __global__ void masked_multihead_attention_kernel(
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // CHECKLIST: Not used
     // Handle generation key cache with beam searching.
     // Note that it may be overlapped with the context key loop, but it won't impact the corretness.
     // Can skip in cross attention mode.
@@ -2277,22 +2269,6 @@ __global__ void masked_multihead_attention_kernel(
     for (int mask = WARPS_PER_BLOCK / 2; mask >= 1; mask /= 2)
     {
         qk_max = fmaxf(qk_max, __shfl_xor_sync(uint32_t(-1), qk_max, mask));
-    }
-
-    // [ ] Compare
-    if (hi == 0)
-    {
-        if (tidx == 0)
-        {
-            printf("In the original kernel\n");
-            printf("qk_max: %f\n", qk_max);
-        }
-
-#pragma unroll
-        for (int out_i = tidx; out_i < kv_loop_length; out_i += THREADS_PER_BLOCK)
-        {
-            printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
-        }
     }
 
     // Broadcast to all the threads in the warp.

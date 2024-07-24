@@ -35,6 +35,9 @@ using tensorrt_llm::plugins::GPTAttentionCustomPlugin;
 static const char* GPT_ATTENTION_PLUGIN_VERSION{"1"};
 static const char* GPT_ATTENTION_PLUGIN_NAME{"GPTAttentionCustom"};
 
+// [ ] Counting
+int GPTAttentionCustomPlugin::callCount = 0; // Initialize counter
+
 GPTAttentionCustomPlugin::GPTAttentionCustomPlugin(int num_heads, int num_kv_heads, int head_size, int unidirectional,
     float q_scaling, tensorrt_llm::kernels::PositionEmbeddingType position_embedding_type,
     int rotary_embedding_dim, // for RoPE. 0 for non-RoPE
@@ -453,6 +456,8 @@ int GPTAttentionCustomPlugin::enqueueSome(int32_t seqIdxBeg, int32_t localNbSeq,
                 = reinterpret_cast<const int*>(inputs[getIdx(IdxEntry::ENCODER_INPUT_LENGTH)]) + seqIdxBeg;
         }
 
+        printf("Count: %d\n", callCount);
+        callCount += 1;
         enqueueGeneration<T, KVCacheBuffer>(enqueue_params, stream);
     }
 

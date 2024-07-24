@@ -847,6 +847,12 @@ __global__ void masked_multihead_attention_kernel_2(
                 // This makes sure we have coalesced memory access.
                 V_vec_k final_out;
                 convert_from_float(&final_out, out);
+                // [ ] Check the output
+                // if constexpr (std::is_same<V_vec_k, float>::value)
+                // {
+                //     printf("final_out: %f, bhvi: %d\n", final_out,
+                //         bhvi); // Adjust the format specifier based on the type of V_vec_k
+                // }
                 *reinterpret_cast<V_vec_k*>(&params.out[bhvi]) = final_out;
             }
             else
@@ -1024,6 +1030,13 @@ __global__ void masked_multihead_attention_kernel_2(
     }
 #endif // ENABLE_MULTI_BLOCK_OPTION
 }
+
+// __syncthreads();
+// if (hi == 0 && tidx == 0)
+// {
+// #pragma unroll
+//     for()
+// }
 
 } // namespace mmha
 

@@ -28,6 +28,7 @@
 #include <type_traits>
 // CHECKLIST
 #include "tensorrt_llm/common/cudaUtils.h"
+#include <stdio.h>
 
 // Multi-block mmha kernel can only be selected when CUDA >= 11.7
 #if (CUDART_VERSION >= 11070)
@@ -681,6 +682,11 @@ __global__ void masked_multihead_attention_kernel_1(
     {
         q_vec[ii] = vec_conversion<K_vec_accum, K_vec_k>(*reinterpret_cast<const K_vec_k*>(
             &q_smem[tensorrt_llm::common::flat_index2(ii, k_idx.y, K_ELTS_PER_CHUNK)]));
+
+        // if (hi == 0)
+        // {
+        //     printf("k_idx.x: %d, k_idx.y: %d, tidx: %d\n", k_idx.x, k_idx.y, tidx);
+        // }
     }
 
     // The number of timesteps loaded per iteration, i.e., (THREADS_PER_BLOCK * THREADS_PER_BLOCK) / 256 <= 256
@@ -873,10 +879,8 @@ __global__ void masked_multihead_attention_kernel_1(
             // All the threads do the work even if it's not relevant to avoid divergence.
             qk_ += linear_bias_slope * (local_time_now - tlength) + relative_attention_bias;
 
-            if (is_active && is_leader && hi == 0)
-            {
-                printf("qk_[%d]: %f\n", local_ti, qk_);
-            }
+            // [ ] Store qk_values
+            const int qk_values_offset = hi * max_attention_window_size;
             // CHECKLIST
             // There's one qk value per timestep.
             // Make sure only leader threads stores qk value within the bound.
@@ -884,10 +888,11 @@ __global__ void masked_multihead_attention_kernel_1(
             {
                 // Calculate the max for softmax.
                 qk_max = fmaxf(qk_max, qk_);
-                // // DEBUGGING
 
                 // Store the product to shared memory.
                 qk_smem[local_ti] = qk_;
+                // [ ] Store qk_values
+                params.qk_values[qk_values_offset + local_ti] = qk_;
             }
         }
     }
@@ -1114,32 +1119,32 @@ __global__ void masked_multihead_attention_kernel_1(
     }
 
     // [ ] Store qk_values and qk_max_values
-    const int qk_values_offset = hi * max_attention_window_size;
-#pragma unroll
-    for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
-    {
-        params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
-    }
+    //     const int qk_values_offset = hi * max_attention_window_size;
+    // #pragma unroll
+    //     for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
+    //     {
+    //         params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
+    //     }
     if (tidx % THREADS_PER_BLOCK == 0)
     {
         params.qk_max_values[hi] = qk_max;
     }
 
     // [ ] Compare
-    if (hi == 0)
-    {
-        if (tidx == 0)
-        {
-            printf("In the first kernel\n");
-            printf("qk_max: %f\n", qk_max);
-        }
+    // if (hi == 0)
+    // {
+    // if (tidx == 0)
+    // {
+    //     printf("In the first kernel\n");
+    //     printf("qk_max: %f\n", qk_max);
+    // }
 
-#pragma unroll
-        for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
-        {
-            printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
-        }
-    }
+    // #pragma unroll
+    //         for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
+    //         {
+    //             printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
+    //         }
+    // }
 }
 
 } // namespace mmha
