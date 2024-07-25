@@ -335,6 +335,10 @@ __global__ void masked_multihead_attention_kernel_1(
     const auto qk_vec_idx = tidx * QK_VEC_SIZE;
     const auto is_valid_qk_vec = qk_vec_idx < Dh;
 
+    // [x] Store qk_values
+    const auto max_attention_window_size = params.max_attention_window_size;
+    const int qk_values_offset = hi * max_attention_window_size;
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // CHECKLIST: Loading Q and K with Quantization
@@ -653,6 +657,8 @@ __global__ void masked_multihead_attention_kernel_1(
             // We need to store the qk result to the end of the qk_smem for cyclic kv cache (+ 1 for smem memory
             // allocation) because the previous cache will still write to the new_cache_pos of qk_smem.
             qk_smem[kv_loop_length] = qk;
+            // [ ] Store the qk value of the current timestep
+            // params.qk_values[qk_values_offset + kv_loop_length] = qk;
         }
     }
 
@@ -730,7 +736,6 @@ __global__ void masked_multihead_attention_kernel_1(
         ? divUp(timesteps_per_block, K_PER_WARP) * K_PER_WARP
         : divUp(static_cast<unsigned>(kv_loop_length), K_PER_WARP) * K_PER_WARP;
 
-    const auto max_attention_window_size = params.max_attention_window_size;
     // Iterate over the keys/timesteps to compute the various (Q*K^T)_{ti} values.
     // Note max_attention_window_size is maximum of cyclic_attention_window_size among all layers.
     // By default, you can assume that they are the same.
@@ -879,8 +884,6 @@ __global__ void masked_multihead_attention_kernel_1(
             // All the threads do the work even if it's not relevant to avoid divergence.
             qk_ += linear_bias_slope * (local_time_now - tlength) + relative_attention_bias;
 
-            // [ ] Store qk_values
-            const int qk_values_offset = hi * max_attention_window_size;
             // CHECKLIST
             // There's one qk value per timestep.
             // Make sure only leader threads stores qk value within the bound.
@@ -892,7 +895,7 @@ __global__ void masked_multihead_attention_kernel_1(
                 // Store the product to shared memory.
                 qk_smem[local_ti] = qk_;
                 // [ ] Store qk_values
-                params.qk_values[qk_values_offset + local_ti] = qk_;
+                // params.qk_values[qk_values_offset + local_ti] = qk_;
             }
         }
     }
@@ -1105,10 +1108,6 @@ __global__ void masked_multihead_attention_kernel_1(
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    // CHECKLIST: Block-wide reduction begins
-
-    // The warps finalize the reduction.
     // CHECKLIST: Finally, compare and select the max qk value within a block(attention head)
     // The size of red_smem is WARPS_PER_BLOCK
     qk_max = lane < WARPS_PER_BLOCK ? red_smem[lane] : -FLT_MAX;
@@ -1118,33 +1117,18 @@ __global__ void masked_multihead_attention_kernel_1(
         qk_max = fmaxf(qk_max, __shfl_xor_sync(uint32_t(-1), qk_max, mask));
     }
 
-    // [ ] Store qk_values and qk_max_values
-    //     const int qk_values_offset = hi * max_attention_window_size;
-    // #pragma unroll
-    //     for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
-    //     {
-    //         params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
-    //     }
-    if (tidx % THREADS_PER_BLOCK == 0)
+    // if (tidx <= kv_loop_length)
+    // {
+#pragma unroll
+    for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
+    {
+        params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
+    }
+    // }
+    if (tidx == 0)
     {
         params.qk_max_values[hi] = qk_max;
     }
-
-    // [ ] Compare
-    // if (hi == 0)
-    // {
-    // if (tidx == 0)
-    // {
-    //     printf("In the first kernel\n");
-    //     printf("qk_max: %f\n", qk_max);
-    // }
-
-    // #pragma unroll
-    //         for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
-    //         {
-    //             printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
-    //         }
-    // }
 }
 
 } // namespace mmha

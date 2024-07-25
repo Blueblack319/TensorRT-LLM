@@ -455,9 +455,6 @@ int GPTAttentionCustomPlugin::enqueueSome(int32_t seqIdxBeg, int32_t localNbSeq,
             enqueue_params.encoder_input_lengths
                 = reinterpret_cast<const int*>(inputs[getIdx(IdxEntry::ENCODER_INPUT_LENGTH)]) + seqIdxBeg;
         }
-
-        printf("Count: %d\n", callCount);
-        callCount += 1;
         enqueueGeneration<T, KVCacheBuffer>(enqueue_params, stream);
     }
 

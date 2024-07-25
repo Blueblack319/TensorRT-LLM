@@ -443,46 +443,33 @@ __global__ void masked_multihead_attention_kernel_2(
 
     // CHECKLIST: Split-Point======================================================================================
 
-    // [x] Restore the qk_max for each head
-    // Decompose the thread index into warp and lane.
-    // [x] Never used
-    // const auto warp = tidx / WARP_SIZE;
-    const auto lane = tidx % WARP_SIZE;
-    // [ ] If this code perform incorrectly, let each thread takes qk_max from qk_max_values.
-    qk_max = lane == 0 ? params.qk_max_values[hi] : 0;
-
-    // Broadcast to all the threads in the warp.
-    qk_max = __shfl_sync(uint32_t(-1), qk_max, 0);
-
-    // CHECKLIST: Block-wide reduction is done
     ////////////////////////////////////////////////////////////////////////////////////////////////
+    // [x] Restore the qk_values and qk_max_value for each head
+
+    // [ ] If this code perform incorrectly, let each thread takes qk_max from qk_max_values.
+    const auto lane = tidx % WARP_SIZE;
+    qk_max = lane == 0 ? params.qk_max_values[hi] : 0;
+    // Broadcast to all the threads in the warp
+    qk_max = __shfl_sync(uint32_t(-1), qk_max, 0);
 
     // [x] Restore the qk_smem from params.qk_values
     const auto max_attention_window_size = params.max_attention_window_size;
     const int qk_values_offset = hi * max_attention_window_size;
+
+    // if (tidx <= kv_loop_length)
+    // {
 #pragma unroll
-    for (int out_i = tidx; out_i < kv_loop_length; out_i += THREADS_PER_BLOCK)
+    for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
     {
         qk_smem[out_i] = params.qk_values[qk_values_offset + out_i];
     }
+    // }
+    __syncthreads();
 
     // TODO_: Need to restore 'qk_current_smem' if we consider 'MULTI_BLOCK_FLAG'
 
-    // [ ] Check whether the qk_values and qk_max_values are correct
-    //     if (hi == 0)
-    //     {
-    //         if (tidx == 0)
-    //         {
-    //             printf("In the second kernel:\n");
-    //             printf("qk_max: %f\n", qk_max);
-    //         }
-
-    // #pragma unroll
-    //         for (int out_i = tidx; out_i < kv_loop_length; out_i += THREADS_PER_BLOCK)
-    //         {
-    //             printf("qk_smem[%d]: %f\n", out_i, qk_smem[out_i]);
-    //         }
-    //     }
+    // [x] Restore the qk_values and qk_max_value for each head
+    ////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // CHECKLIST: Compute the logits and start the sum.
@@ -847,12 +834,6 @@ __global__ void masked_multihead_attention_kernel_2(
                 // This makes sure we have coalesced memory access.
                 V_vec_k final_out;
                 convert_from_float(&final_out, out);
-                // [ ] Check the output
-                // if constexpr (std::is_same<V_vec_k, float>::value)
-                // {
-                //     printf("final_out: %f, bhvi: %d\n", final_out,
-                //         bhvi); // Adjust the format specifier based on the type of V_vec_k
-                // }
                 *reinterpret_cast<V_vec_k*>(&params.out[bhvi]) = final_out;
             }
             else

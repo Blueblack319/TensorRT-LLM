@@ -281,14 +281,7 @@ void mmha_launch_kernel_ex(
         else
         {
             // [ ] Kernel Beginnig
-            printf(
-                "current timestep: %d, batch_size: %d, stride: %d, beam_width: %d, max_attention_window_size: %d, "
-                "cyclic_attention_window_size: %d, num_heads: %d, num_kv_heads: %d, hidden_size_per_head: %d\n",
-                params.timestep, params.batch_size, params.stride, params.beam_width, params.max_attention_window_size,
-                params.cyclic_attention_window_size, params.num_heads, params.num_kv_heads,
-                params.hidden_size_per_head);
             MMHA_KERNEL(512, false);
-            printf("END\N");
         }
         break;
     case 1024:
