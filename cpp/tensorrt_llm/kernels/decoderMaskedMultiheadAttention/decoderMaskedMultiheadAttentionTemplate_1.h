@@ -1129,6 +1129,70 @@ __global__ void masked_multihead_attention_kernel_1(
     {
         params.qk_max_values[hi] = qk_max;
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // TODO_: Perform Topk operation
+
+    const bool IS_HALF = std::is_same<T, half>::value;
+    const bool IS_SINGLE = std::is_same<T, float>::value;
+    const int MAX_K = 10;
+    if constexpr (IS_HALF || IS_SINGLE)
+    {
+        const T MAX_T_VAL = (IS_HALF) ? 65504.F : FLT_MAX;
+        TopK<T, MAX_K> partial;
+
+        typedef cub::BlockReduce<TopK<T, MAX_K>, THREADS_PER_BLOCK> BlockReduce;
+        __shared__ typename BlockReduce::TempStorage temp_storage;
+
+        // Initilization
+#pragma unroll
+        for (int i = 0; i < MAX_K; ++i)
+        {
+            partial.p[i] = -1;
+            partial.u[i] = -MAX_T_VAL;
+        }
+
+        // Insertion of values
+
+#pragma unroll
+        for (int i = tidx; i <= kv_loop_length; i += THREADS_PER_BLOCK)
+        {
+            // int index = bid * MAX_K * MAX_K + i * THREADS_PER_BLOCK + tid;
+            partial.insert(qk_smem[i], i);
+        }
+
+        // Block-wide Reduction
+        TopK<T, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<T, MAX_K>);
+
+        // DEBUGGING
+        if (hi == 0 && tidx == 0)
+        {
+            printf("TopK qk values: ");
+            for (int i = 0; i < 10; i += 1)
+            {
+                printf("%f, ", partial.u[i]);
+            }
+            printf("\n");
+
+            printf("qk values: ");
+            for (int i = 0; i <= kv_loop_length; i++)
+            {
+                printf("%f, ", qk_smem[i]);
+            }
+            printf("\n");
+        }
+
+        // Store the topk value for each head into the global memory
+        const int topk_qk_index = hi * MAX_K;
+#pragma unroll
+        for (int i = 0; i <= MAX_K; i += THREADS_PER_BLOCK)
+        {
+            params.topk_qk_indices[topk_qk_index + i] = total.p[i];
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // TODO_: Transfer some data to Host
 }
 
 } // namespace mmha

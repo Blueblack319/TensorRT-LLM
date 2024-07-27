@@ -83,6 +83,10 @@ protected:
     size_t getWorkspaceSizeForGeneration(
         nvinfer1::DataType type, int32_t total_num_seq, int32_t max_attention_window_size) const noexcept;
 
+    // size_t getWorkspaceSizeForGeneration(
+    //     nvinfer1::DataType type, int32_t total_num_seq, int32_t max_attention_window_size, int32_t max_k = 10) const
+    //     noexcept;
+
     template <typename T, typename KVCacheBuffer>
     struct EnqueueContextParams
     {

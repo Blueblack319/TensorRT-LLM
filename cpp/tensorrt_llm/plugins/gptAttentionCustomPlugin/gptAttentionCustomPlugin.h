@@ -128,8 +128,12 @@ public:
     };
 
 private:
-    // [ ] Counting
-    static int callCount;
+    // [x] Counting
+    static int layerIdx;
+    int callCount;
+    // [ ]
+    float* kv_cache_cpu;
+
     template <typename T, typename KVCacheBuffer>
     int enqueueSome(int32_t seqIdxBeg, int32_t localNbSeq, int32_t tokenIdxBeg, int32_t localNbTokens,
         const nvinfer1::PluginTensorDesc* inputDesc, const nvinfer1::PluginTensorDesc* outputDesc,

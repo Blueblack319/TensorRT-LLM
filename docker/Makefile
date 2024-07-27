@@ -20,7 +20,7 @@ endif
 # Default stage of the docker multi-stage build
 STAGE              ?=
 # Set this to define a custom image name and tag
-IMAGE_WITH_TAG     ?= $(IMAGE_NAME)$(if $(STAGE),/$(STAGE))/0.7.0:$(IMAGE_TAG)
+IMAGE_WITH_TAG     ?= $(IMAGE_NAME)$(if $(STAGE),/$(STAGE))/0.7.0/$(IMAGE_NICK):$(IMAGE_TAG)
 DOCKER_BUILD_OPTS  ?= --pull
 DOCKER_BUILD_ARGS  ?=
 DOCKER_PROGRESS    ?= auto
@@ -33,6 +33,7 @@ NCCL_VERSION       ?=
 CUBLAS_VERSION     ?=
 TRT_VERSION        ?=
 NAME		   ?= 1
+IMAGE_NICK	   ?= 1
 
 define add_local_user
 	docker build \

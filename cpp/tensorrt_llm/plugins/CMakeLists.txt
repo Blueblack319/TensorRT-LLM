@@ -32,7 +32,7 @@ set(PLUGIN_CU_SOURCES)
 set(PLUGIN_LISTS
     # bertAttentionPlugin
     gptAttentionCommon
-    gptAttentionPlugin
+    # gptAttentionPlugin
     # [x] For a custom plugin
     gptAttentionCustomPlugin
     identityPlugin

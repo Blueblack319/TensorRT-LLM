@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "decoderMaskedMultiheadAttentionTemplate.h"
+// #include "decoderMaskedMultiheadAttentionTemplate.h"
 #include "decoderMaskedMultiheadAttentionTemplate_1.h"
 #include "decoderMaskedMultiheadAttentionTemplate_2.h"
 #include "tensorrt_llm/common/assert.h"
@@ -162,7 +162,7 @@ inline void multi_block_grid_setup(dim3& grid, const Multihead_attention_params<
             KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, DO_MULTI_BLOCK>,                                          \
         DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz));
 
-// [ ] Split the existing kernel into two custom kernels
+// [x] Split the existing kernel into two custom kernels
 #define MMHA_KERNEL(DYNAMIC_THDS_PER_BLOCK, ENABLE_MULTI_BLOCK)                                                        \
     std::size_t const dynamic_smem_sz{                                                                                 \
         mmha::smem_size_in_bytes<T, Dh, ENABLE_MULTI_BLOCK>(params, DYNAMIC_THDS_PER_BLOCK)};                          \

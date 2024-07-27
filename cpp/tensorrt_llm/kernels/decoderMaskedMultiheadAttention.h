@@ -180,6 +180,8 @@ struct Multihead_attention_params_base
     float* qk_values = nullptr;
     // The max values of qk_values for each head(block). Dimensions num_heads X 1
     float* qk_max_values = nullptr;
+    // The indice for TopK qk values
+    int* topk_qk_indices = nullptr;
 };
 
 template <typename T, bool USE_CROSS_ATTENTION = false>

@@ -21,7 +21,7 @@
 
 // #include "tensorrt_llm/plugins/bertAttentionPlugin/bertAttentionPlugin.h"
 #include "tensorrt_llm/plugins/gemmPlugin/gemmPlugin.h"
-#include "tensorrt_llm/plugins/gptAttentionPlugin/gptAttentionPlugin.h"
+// #include "tensorrt_llm/plugins/gptAttentionPlugin/gptAttentionPlugin.h"
 // [x] For a custom plugin
 #include "tensorrt_llm/plugins/gptAttentionCustomPlugin/gptAttentionCustomPlugin.h"
 #include "tensorrt_llm/plugins/identityPlugin/identityPlugin.h"
@@ -136,7 +136,7 @@ extern "C"
     {
         static tensorrt_llm::plugins::IdentityPluginCreator identityPluginCreator;
         // static tensorrt_llm::plugins::BertAttentionPluginCreator bertAttentionPluginCreator;
-        static tensorrt_llm::plugins::GPTAttentionPluginCreator gptAttentionPluginCreator;
+        // static tensorrt_llm::plugins::GPTAttentionPluginCreator gptAttentionPluginCreator;
         // [x] For a custom plugin
         static tensorrt_llm::plugins::GPTAttentionCustomPluginCreator gptAttentionCustomPluginCreator;
         static tensorrt_llm::plugins::GemmPluginCreator gemmPluginCreator;
@@ -163,7 +163,7 @@ extern "C"
         static std::array pluginCreators = {
             creatorPtr(identityPluginCreator),
             // creatorPtr(bertAttentionPluginCreator),
-            creatorPtr(gptAttentionPluginCreator),
+            // creatorPtr(gptAttentionPluginCreator),
             // [x] For a custom plugin
             creatorPtr(gptAttentionCustomPluginCreator),
             creatorPtr(gemmPluginCreator),
