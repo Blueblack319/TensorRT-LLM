@@ -280,7 +280,6 @@ void mmha_launch_kernel_ex(
         }
         else
         {
-            // [ ] Kernel Beginnig
             MMHA_KERNEL(512, false);
         }
         break;

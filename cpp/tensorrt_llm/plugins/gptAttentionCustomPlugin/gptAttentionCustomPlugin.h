@@ -128,9 +128,6 @@ public:
     };
 
 private:
-    // [x] Counting
-    static int layerIdx;
-    int callCount;
     // [ ]
     float* kv_cache_cpu;
 

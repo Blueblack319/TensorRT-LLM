@@ -32,7 +32,6 @@ CUDNN_VERSION      ?=
 NCCL_VERSION       ?=
 CUBLAS_VERSION     ?=
 TRT_VERSION        ?=
-NAME		   ?= 1
 IMAGE_NICK	   ?= 1
 
 define add_local_user
@@ -82,6 +81,7 @@ CODE_DIR          ?= /code/tensorrt_llm
 CCACHE_DIR        ?= ${CODE_DIR}/cpp/.ccache
 RUN_CMD           ?=
 CONTAINER_NAME    ?= tensorrt_llm
+SUF		  ?= 1
 
 %_run:
 ifeq ($(LOCAL_USER),1)
@@ -94,7 +94,7 @@ endif
     		--env "CCACHE_BASEDIR=${CODE_DIR}" \
     		--workdir $(CODE_DIR) \
     		--hostname $(shell hostname)-$* \
-    		--name $(CONTAINER_NAME)-$*-$(USER_NAME)-$(NAME) \
+    		--name $(CONTAINER_NAME)-$*-$(USER_NAME)-$(SUF) \
 			--tmpfs /tmp:exec \
     		$(IMAGE_WITH_TAG)$(IMAGE_TAG_SUFFIX) $(RUN_CMD)
 

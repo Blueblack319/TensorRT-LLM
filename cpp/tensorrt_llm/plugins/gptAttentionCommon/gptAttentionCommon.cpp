@@ -117,6 +117,7 @@ struct FusedQKVMaskedAttentionDispatchParams
     float* qk_values;
     float* qk_max_values;
     int* topk_qk_indices;
+    float* kv_cache_full;
 };
 
 template <typename T, typename KVCacheBuffer>
@@ -302,6 +303,7 @@ void fusedQKV_masked_attention_dispatch(Multihead_attention_params<T_MMHA, CROSS
     params.qk_values = input_params.qk_values;
     params.qk_max_values = input_params.qk_max_values;
     params.topk_qk_indices = input_params.topk_qk_indices;
+    params.kv_cache_full = input_params.kv_cache_full;
 
     params.multi_processor_count = input_params.multi_processor_count;
 
@@ -553,6 +555,7 @@ size_t GPTAttentionPluginCommon::getWorkspaceSizeForGeneration(
     const size_t qk_values_size = sizeof(float) * mNumHeads * max_attention_window_size;
     const size_t qk_max_values_size = sizeof(float) * mNumHeads;
     const size_t topk_qk_indices_size = sizeof(int) * mNumHeads * MAX_K;
+    const size_t kv_cache_full_size = sizeof(float) * batch_beam * 2 * 1 * local_hidden_units_kv;
 
     // [x] Add the space for the intermediate buffers
     const int NUM_BUFFERS = 4 + 3;
@@ -566,6 +569,7 @@ size_t GPTAttentionPluginCommon::getWorkspaceSizeForGeneration(
     workspaces[4] = qk_values_size;
     workspaces[5] = qk_max_values_size;
     workspaces[6] = topk_qk_indices_size;
+    workspaces[7] = kv_cache_full_size;
 
     generation_workspace_size = tc::calculateTotalWorkspaceSize(workspaces, NUM_BUFFERS);
 
@@ -1210,6 +1214,7 @@ int GPTAttentionPluginCommon::enqueueGeneration(
     const size_t qk_values_size = sizeof(float) * mNumHeads * params.max_attention_window;
     const size_t qk_max_values_size = sizeof(float) * mNumHeads;
     const size_t topk_qk_indices_size = sizeof(int) * mNumHeads * MAX_K;
+    const size_t kv_cache_full_size = sizeof(float) * 2 * 1 * num_kv_heads * head_size;
 
     // Workspace pointer shift
     T* partial_out = reinterpret_cast<T*>(nextWorkspacePtr(workspace_byte_ptr, offset, partial_out_size));
@@ -1221,6 +1226,7 @@ int GPTAttentionPluginCommon::enqueueGeneration(
     float* qk_values = reinterpret_cast<float*>(nextWorkspacePtr(workspace_byte_ptr, offset, qk_values_size));
     float* qk_max_values = reinterpret_cast<float*>(nextWorkspacePtr(workspace_byte_ptr, offset, qk_max_values_size));
     int* topk_qk_indices = reinterpret_cast<int*>(nextWorkspacePtr(workspace_byte_ptr, offset, topk_qk_indices_size));
+    float* kv_cache_full = reinterpret_cast<int*>(nextWorkspacePtr(workspace_byte_ptr, offset, kv_cache_full_size));
 
     if (enable_multi_block)
     {
@@ -1281,6 +1287,7 @@ int GPTAttentionPluginCommon::enqueueGeneration(
     dispatch_params.qk_values = qk_values;
     dispatch_params.qk_max_values = qk_max_values;
     dispatch_params.topk_qk_indices = topk_qk_indices;
+    dispatch_params.kv_cache_full = kv_cache_full;
 
     using DataType = typename SATypeConverter<T>::Type;
     if (!mCrossAttention)

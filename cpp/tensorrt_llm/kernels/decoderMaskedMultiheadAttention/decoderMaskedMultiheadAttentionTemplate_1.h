@@ -688,11 +688,6 @@ __global__ void masked_multihead_attention_kernel_1(
     {
         q_vec[ii] = vec_conversion<K_vec_accum, K_vec_k>(*reinterpret_cast<const K_vec_k*>(
             &q_smem[tensorrt_llm::common::flat_index2(ii, k_idx.y, K_ELTS_PER_CHUNK)]));
-
-        // if (hi == 0)
-        // {
-        //     printf("k_idx.x: %d, k_idx.y: %d, tidx: %d\n", k_idx.x, k_idx.y, tidx);
-        // }
     }
 
     // The number of timesteps loaded per iteration, i.e., (THREADS_PER_BLOCK * THREADS_PER_BLOCK) / 256 <= 256
@@ -1106,6 +1101,10 @@ __global__ void masked_multihead_attention_kernel_1(
         {
             *reinterpret_cast<Qk_vec_m*>(&k_cache[inBlockIdx]) = vec_conversion<Qk_vec_m, Qk_vec_k>(k_vec);
         }
+        // [ ] Store the key vectors with full-precision into kv_cache_full
+        const int blockIdx_full = batch_beam_idx * num_heads_kv * Dh;
+        const int inBLockIdx_full = (hi_kv * 1 * Dh) + (1 * Dh) + qk_vec_idx;
+        params.kv_cache_full[blockIdx_full + inBLockIdx_full] = static_cast<float>(k_vec);
     }
 
     // CHECKLIST: Finally, compare and select the max qk value within a block(attention head)
@@ -1170,7 +1169,7 @@ __global__ void masked_multihead_attention_kernel_1(
             printf("TopK qk values: ");
             for (int i = 0; i < 10; i += 1)
             {
-                printf("%f, ", partial.u[i]);
+                printf("%f, ", total.u[i]);
             }
             printf("\n");
 
@@ -1185,7 +1184,7 @@ __global__ void masked_multihead_attention_kernel_1(
         // Store the topk value for each head into the global memory
         const int topk_qk_index = hi * MAX_K;
 #pragma unroll
-        for (int i = 0; i <= MAX_K; i += THREADS_PER_BLOCK)
+        for (int i = 0; i < MAX_K; i += THREADS_PER_BLOCK)
         {
             params.topk_qk_indices[topk_qk_index + i] = total.p[i];
         }

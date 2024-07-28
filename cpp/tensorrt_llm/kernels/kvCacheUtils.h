@@ -178,7 +178,7 @@ struct KVLinearBuffer
     __host__ __device__ inline int32_t getKVLocalIdx(
         int32_t tokenIdx, int32_t headIdx, int32_t dimsPerHead, int32_t channelIdx)
     {
-        return headIdx * mMaxSeqLen * dimsPerHead + tokenIdx * dimsPerHead + channelIdx;
+        return (headIdx * mMaxSeqLen * dimsPerHead) + (tokenIdx * dimsPerHead) + channelIdx;
     }
 };
 

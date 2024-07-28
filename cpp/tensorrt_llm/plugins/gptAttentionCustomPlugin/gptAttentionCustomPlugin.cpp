@@ -35,9 +35,6 @@ using tensorrt_llm::plugins::GPTAttentionCustomPlugin;
 static const char* GPT_ATTENTION_PLUGIN_VERSION{"1"};
 static const char* GPT_ATTENTION_PLUGIN_NAME{"GPTAttentionCustom"};
 
-// [ ] Counting
-int GPTAttentionCustomPlugin::layerIdx = 0; // Initialize counter
-
 GPTAttentionCustomPlugin::GPTAttentionCustomPlugin(int num_heads, int num_kv_heads, int head_size, int unidirectional,
     float q_scaling, tensorrt_llm::kernels::PositionEmbeddingType position_embedding_type,
     int rotary_embedding_dim, // for RoPE. 0 for non-RoPE
@@ -54,19 +51,14 @@ GPTAttentionCustomPlugin::GPTAttentionCustomPlugin(int num_heads, int num_kv_hea
           cross_attention, max_distance, use_paged_context_fmha, use_cache)
 {
     initEntryIdx();
-    callCount = 0;
-    printf("Layer: %d\n", layerIdx);
-    layerIdx += 1;
     // [ ] Allocate memory for KVCache in CPU
+    // kv_cache_cpu = new float
 }
 
 GPTAttentionCustomPlugin::GPTAttentionCustomPlugin(const void* data, size_t length)
     : GPTAttentionPluginCommon(data, length)
 {
     initEntryIdx();
-    callCount = 0;
-    printf("Layer: %d\n", layerIdx);
-    layerIdx += 1;
     // [ ] Allocate memory for KVCache in CPU
 }
 
@@ -463,8 +455,6 @@ int GPTAttentionCustomPlugin::enqueueSome(int32_t seqIdxBeg, int32_t localNbSeq,
             enqueue_params.encoder_input_lengths
                 = reinterpret_cast<const int*>(inputs[getIdx(IdxEntry::ENCODER_INPUT_LENGTH)]) + seqIdxBeg;
         }
-        // printf("callCount: %d\n", callCount);
-        // callCount += 1;
         enqueueGeneration<T, KVCacheBuffer>(enqueue_params, stream);
     }
 

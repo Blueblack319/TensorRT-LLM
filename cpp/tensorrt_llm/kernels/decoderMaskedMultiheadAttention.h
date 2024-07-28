@@ -182,6 +182,8 @@ struct Multihead_attention_params_base
     float* qk_max_values = nullptr;
     // The indice for TopK qk values
     int* topk_qk_indices = nullptr;
+    // KV Cache for full-precision
+    float* kv_cache_full = nullptr;
 };
 
 template <typename T, bool USE_CROSS_ATTENTION = false>
