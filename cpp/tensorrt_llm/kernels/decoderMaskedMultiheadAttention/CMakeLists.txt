@@ -28,7 +28,8 @@ if(FAST_BUILD)
     SRC_CU
     EXCLUDE
     REGEX
-    "instantiation/decoderMaskedMultiheadAttention(48|80|96|112|144|160|192|224).*cu$"
+    "instantiation/decoderMaskedMultiheadAttention(48|80|96|112|144|160|192|224).*cu$
+    |instantiation/decoderMaskedMultiheadAttention(32|64|128|256)_(float|bf16).*cu$"
   )
 endif()
 

@@ -388,10 +388,11 @@ void fusedQKV_masked_attention_dispatch(Multihead_attention_params<T_MMHA, CROSS
         const FusedQKVMaskedAttentionDispatchParams<T, KVBlockArray>&, cudaStream_t stream);                           \
     template void fusedQKV_masked_attention_dispatch(Multihead_attention_params<T_MMHA, true>&,                        \
         const FusedQKVMaskedAttentionDispatchParams<T, KVBlockArray>&, cudaStream_t stream);
-INSTANTIATE_MMHA_DISPATCH(float, float)
+// [ ] For Fast Build
+// INSTANTIATE_MMHA_DISPATCH(float, float)
 INSTANTIATE_MMHA_DISPATCH(uint16_t, half)
 #ifdef ENABLE_BF16
-INSTANTIATE_MMHA_DISPATCH(__nv_bfloat16, __nv_bfloat16)
+// INSTANTIATE_MMHA_DISPATCH(__nv_bfloat16, __nv_bfloat16)
 #endif
 #undef INSTANTIATE_MMHA_DISPATCH
 
@@ -1429,10 +1430,9 @@ int GPTAttentionPluginCommon::enqueueGeneration(
     T* shift_k_cache = reinterpret_cast<T*>(nextWorkspacePtr(workspace_byte_ptr, offset, shift_k_cache_size));
     // [x] Define the pointers of the intermediate values using 'workspace'
     float* qk_values = reinterpret_cast<float*>(nextWorkspacePtr(workspace_byte_ptr, offset, qk_values_size));
-    float* qk_max_values_size
-        = reinterpret_cast<float*>(nextWorkspacePtr(workspace_byte_ptr, offset, qk_max_values_size));
+    float* qk_max_values = reinterpret_cast<float*>(nextWorkspacePtr(workspace_byte_ptr, offset, qk_max_values_size));
     int* topk_qk_indices = reinterpret_cast<int*>(nextWorkspacePtr(workspace_byte_ptr, offset, topk_qk_indices_size));
-    float* kv_cache_full = reinterpret_cast<int*>(nextWorkspacePtr(workspace_byte_ptr, offset, kv_cache_full_size));
+    float* kv_cache_full = reinterpret_cast<float*>(nextWorkspacePtr(workspace_byte_ptr, offset, kv_cache_full_size));
 
     // Apply position embedding to the keys in the K cache
     KVLinearBuffer shift_k_cache_buffer;
@@ -1542,23 +1542,25 @@ int GPTAttentionPluginCommon::enqueueGeneration(
 template int GPTAttentionPluginCommon::enqueueGeneration<half, KVLinearBuffer>(
     EnqueueGenerationParams<half, KVLinearBuffer> const& params, cudaStream_t stream);
 
-template int GPTAttentionPluginCommon::enqueueGeneration<float, KVLinearBuffer>(
-    EnqueueGenerationParams<float, KVLinearBuffer> const& params, cudaStream_t stream);
+// [ ] For Fast Build
+// template int GPTAttentionPluginCommon::enqueueGeneration<float, KVLinearBuffer>(
+//     EnqueueGenerationParams<float, KVLinearBuffer> const& params, cudaStream_t stream);
 
 #ifdef ENABLE_BF16
-template int GPTAttentionPluginCommon::enqueueGeneration<__nv_bfloat16, KVLinearBuffer>(
-    EnqueueGenerationParams<__nv_bfloat16, KVLinearBuffer> const& params, cudaStream_t stream);
+// template int GPTAttentionPluginCommon::enqueueGeneration<__nv_bfloat16, KVLinearBuffer>(
+//     EnqueueGenerationParams<__nv_bfloat16, KVLinearBuffer> const& params, cudaStream_t stream);
 #endif
 
 template int GPTAttentionPluginCommon::enqueueGeneration<half, KVBlockArray>(
     EnqueueGenerationParams<half, KVBlockArray> const& params, cudaStream_t stream);
 
-template int GPTAttentionPluginCommon::enqueueGeneration<float, KVBlockArray>(
-    EnqueueGenerationParams<float, KVBlockArray> const& params, cudaStream_t stream);
+// [ ] For Fast Build
+// template int GPTAttentionPluginCommon::enqueueGeneration<float, KVBlockArray>(
+//     EnqueueGenerationParams<float, KVBlockArray> const& params, cudaStream_t stream);
 
 #ifdef ENABLE_BF16
-template int GPTAttentionPluginCommon::enqueueGeneration<__nv_bfloat16, KVBlockArray>(
-    EnqueueGenerationParams<__nv_bfloat16, KVBlockArray> const& params, cudaStream_t stream);
+// template int GPTAttentionPluginCommon::enqueueGeneration<__nv_bfloat16, KVBlockArray>(
+//     EnqueueGenerationParams<__nv_bfloat16, KVBlockArray> const& params, cudaStream_t stream);
 #endif
 
 template <typename T, typename KVCacheBuffer>

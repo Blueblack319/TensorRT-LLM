@@ -149,13 +149,14 @@ bool mmha_supported(int head_size)
         multihead_attention_<T, KVLinearBuffer, Multihead_attention_params<T, CROSS_ATTENTION>>(                       \
             params, kv_cache_buffer, shift_k_cache, stream);                                                           \
     }
-INSTANTIATE_MMHA_NORMAL_AND_PAGED(float, true)
-INSTANTIATE_MMHA_NORMAL_AND_PAGED(float, false)
+// [ ] For Fast Build
+// INSTANTIATE_MMHA_NORMAL_AND_PAGED(float, true)
+// INSTANTIATE_MMHA_NORMAL_AND_PAGED(float, false)
 INSTANTIATE_MMHA_NORMAL_AND_PAGED(uint16_t, true)
 INSTANTIATE_MMHA_NORMAL_AND_PAGED(uint16_t, false)
 #ifdef ENABLE_BF16
-INSTANTIATE_MMHA_NORMAL_AND_PAGED(__nv_bfloat16, true)
-INSTANTIATE_MMHA_NORMAL_AND_PAGED(__nv_bfloat16, false)
+// INSTANTIATE_MMHA_NORMAL_AND_PAGED(__nv_bfloat16, true)
+// INSTANTIATE_MMHA_NORMAL_AND_PAGED(__nv_bfloat16, false)
 #endif
 #undef INSTANTIATE_MMHA_NORMAL_AND_PAGED
 

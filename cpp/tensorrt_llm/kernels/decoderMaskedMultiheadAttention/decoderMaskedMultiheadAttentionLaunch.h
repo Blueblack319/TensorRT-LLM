@@ -187,7 +187,6 @@ inline void multi_block_grid_setup(dim3& grid, Multihead_attention_params<T, DO_
         DYNAMIC_THDS_PER_BLOCK, KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, ENABLE_MULTI_BLOCK, POS_SHIFT,        \
         BLOCK_SPARSE_ATTN, IMPLICIT_REL_ATTN_BIAS, QK_TANH_SCALE>                                                      \
         <<<grid, DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz, stream>>>(params, kv_cache_buffer, k_cache_buffer);          \
-    cudaDeviceSynchronize();                                                                                           \
     mmha::masked_multihead_attention_kernel_2<T, T_cache, TKcache, KVCacheBuffer, KCacheBuffer, Dh,                    \
         DYNAMIC_THDS_PER_BLOCK, KernelParamsType::DO_CROSS_ATTENTION, HAS_BEAMS, ENABLE_MULTI_BLOCK, POS_SHIFT,        \
         BLOCK_SPARSE_ATTN, IMPLICIT_REL_ATTN_BIAS, QK_TANH_SCALE>                                                      \

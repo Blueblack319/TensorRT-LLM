@@ -1148,6 +1148,7 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
         {
             *reinterpret_cast<Qk_vec_m*>(&k_cache[inBlockIdx]) = vec_conversion<Qk_vec_m, Qk_vec_k>(k_vec);
         }
+        // [ ] Store the key with full-precision into the kv_cache_full
     }
 
     // The warps finalize the reduction.
@@ -1174,62 +1175,58 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // TODO_: Perform Topk operation
 
-    bool const IS_HALF = std::is_same<T, half>::value;
-    bool const IS_SINGLE = std::is_same<T, float>::value;
     int const MAX_K = 10;
-    if constexpr (IS_HALF || IS_SINGLE)
+
+    float const MAX_T_VAL = 65504.F;
+    TopK<float, MAX_K> partial;
+
+    typedef cub::BlockReduce<TopK<float, MAX_K>, THREADS_PER_BLOCK> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
+
+    // Initilization
+#pragma unroll
+    for (int i = 0; i < MAX_K; ++i)
     {
-        T const MAX_T_VAL = (IS_HALF) ? 65504.F : FLT_MAX;
-        TopK<T, MAX_K> partial;
+        partial.p[i] = -1;
+        partial.u[i] = -MAX_T_VAL;
+    }
 
-        typedef cub::BlockReduce<TopK<T, MAX_K>, THREADS_PER_BLOCK> BlockReduce;
-        __shared__ typename BlockReduce::TempStorage temp_storage;
-
-        // Initilization
-#pragma unroll
-        for (int i = 0; i < MAX_K; ++i)
-        {
-            partial.p[i] = -1;
-            partial.u[i] = -MAX_T_VAL;
-        }
-
-        // Insertion of values
+    // Insertion of values
 
 #pragma unroll
-        for (int i = tidx; i <= kv_loop_length; i += THREADS_PER_BLOCK)
+    for (int i = tidx; i <= kv_loop_length; i += THREADS_PER_BLOCK)
+    {
+        // int index = bid * MAX_K * MAX_K + i * THREADS_PER_BLOCK + tid;
+        partial.insert(qk_smem[i], i);
+    }
+
+    // Block-wide Reduction
+    TopK<float, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<float, MAX_K>);
+
+    // DEBUGGING
+    if (hi == 0 && tidx == 0)
+    {
+        printf("Total qk values: ");
+        for (int i = 0; i < 10; i += 1)
         {
-            // int index = bid * MAX_K * MAX_K + i * THREADS_PER_BLOCK + tid;
-            partial.insert(qk_smem[i], i);
+            printf("%f, ", total.u[i]);
         }
+        printf("\n");
 
-        // Block-wide Reduction
-        TopK<T, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<T, MAX_K>);
-
-        // DEBUGGING
-        if (hi == 0 && tidx == 0)
+        printf("qk values: ");
+        for (int i = 0; i <= kv_loop_length; i++)
         {
-            printf("TopK qk values: ");
-            for (int i = 0; i < 10; i += 1)
-            {
-                printf("%f, ", total.u[i]);
-            }
-            printf("\n");
-
-            printf("qk values: ");
-            for (int i = 0; i <= kv_loop_length; i++)
-            {
-                printf("%f, ", qk_smem[i]);
-            }
-            printf("\n");
+            printf("%f, ", qk_smem[i]);
         }
+        printf("\n");
+    }
 
-        // Store the topk value for each head into the global memory
-        int const topk_qk_index = hi * MAX_K;
+    // Store the topk value for each head into the global memory
+    int const topk_qk_index = hi * MAX_K;
 #pragma unroll
-        for (int i = 0; i < MAX_K; i += THREADS_PER_BLOCK)
-        {
-            params.topk_qk_indices[topk_qk_index + i] = total.p[i];
-        }
+    for (int i = 0; i < MAX_K; i += THREADS_PER_BLOCK)
+    {
+        params.topk_qk_indices[topk_qk_index + i] = total.p[i];
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////

@@ -48,8 +48,8 @@ GPTAttentionPlugin::GPTAttentionPlugin(int layer_idx, int num_heads, int vision_
     float rotary_embedding_scale, float rotary_embedding_short_m_scale,
     float rotary_embedding_long_m_scale, // magnitude scaling factors for Phi-3 long RoPE
     int rotary_embedding_max_positions, int rotary_embedding_original_max_positions, int tp_size,
-    int tp_rank,                         // for ALiBi
-    bool unfuse_qkv_gemm,                // for AutoPP
+    int tp_rank,          // for ALiBi
+    bool unfuse_qkv_gemm, // for AutoPP
     tensorrt_llm::kernels::ContextFMHAType context_fmha_type, bool multi_block_mode, bool enable_xqa,
     int kv_cache_quant_mode, bool remove_input_padding, tensorrt_llm::kernels::AttentionMaskType mask_type,
     tensorrt_llm::kernels::BlockSparseParams block_sparse_params, bool paged_kv_cache, int tokens_per_block,
@@ -57,13 +57,13 @@ GPTAttentionPlugin::GPTAttentionPlugin(int layer_idx, int num_heads, int vision_
     bool pos_shift_enabled, bool dense_context_fmha, bool use_paged_context_fmha, bool use_fp8_context_fmha,
     bool use_cache, bool is_spec_decoding_enabled)
     : GPTAttentionPluginCommon(layer_idx, num_heads, vision_start, vision_length, num_kv_heads, head_size,
-        unidirectional, q_scaling, qk_tanh_scale, position_embedding_type, rotary_embedding_dim, rotary_embedding_base,
-        rotary_embedding_scale_type, rotary_embedding_scale, rotary_embedding_short_m_scale,
-        rotary_embedding_long_m_scale, rotary_embedding_max_positions, rotary_embedding_original_max_positions, tp_size,
-        tp_rank, unfuse_qkv_gemm, context_fmha_type, multi_block_mode, enable_xqa, kv_cache_quant_mode,
-        remove_input_padding, mask_type, block_sparse_params, paged_kv_cache, tokens_per_block, type,
-        max_context_length, qkv_bias_enabled, cross_attention, max_distance, pos_shift_enabled, dense_context_fmha,
-        use_paged_context_fmha, use_fp8_context_fmha, use_cache, is_spec_decoding_enabled)
+          unidirectional, q_scaling, qk_tanh_scale, position_embedding_type, rotary_embedding_dim,
+          rotary_embedding_base, rotary_embedding_scale_type, rotary_embedding_scale, rotary_embedding_short_m_scale,
+          rotary_embedding_long_m_scale, rotary_embedding_max_positions, rotary_embedding_original_max_positions,
+          tp_size, tp_rank, unfuse_qkv_gemm, context_fmha_type, multi_block_mode, enable_xqa, kv_cache_quant_mode,
+          remove_input_padding, mask_type, block_sparse_params, paged_kv_cache, tokens_per_block, type,
+          max_context_length, qkv_bias_enabled, cross_attention, max_distance, pos_shift_enabled, dense_context_fmha,
+          use_paged_context_fmha, use_fp8_context_fmha, use_cache, is_spec_decoding_enabled)
 {
     initEntryIdx();
 }
@@ -812,16 +812,19 @@ int GPTAttentionPlugin::enqueueDispatchKVCacheType(nvinfer1::PluginTensorDesc co
     return 0;
 }
 
+// [ ] For Fast Build
 int GPTAttentionPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
     nvinfer1::PluginTensorDesc const* outputDesc, void const* const* inputs, void* const* outputs, void* workspace,
     cudaStream_t stream) noexcept
 {
+    // printf("HERE\n");
     if (isBuilding())
     {
         return 0;
     }
     if (mType == nvinfer1::DataType::kHALF)
     {
+        // printf("Type: Half\n");
 #ifdef ENABLE_FP8
         if (mFP8ContextFMHA)
         {
@@ -833,7 +836,8 @@ int GPTAttentionPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
     }
     else if (mType == nvinfer1::DataType::kFLOAT)
     {
-        return enqueueDispatchKVCacheType<float>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
+        // printf("Type: Float\n");
+        // return enqueueDispatchKVCacheType<float>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
     }
 #ifdef ENABLE_BF16
     else if (mType == nvinfer1::DataType::kBF16)
@@ -841,11 +845,12 @@ int GPTAttentionPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
 #ifdef ENABLE_FP8
         if (mFP8ContextFMHA)
         {
-            return enqueueDispatchKVCacheType<__nv_bfloat16, __nv_fp8_e4m3>(
-                inputDesc, outputDesc, inputs, outputs, workspace, stream);
+            // return enqueueDispatchKVCacheType<__nv_bfloat16, __nv_fp8_e4m3>(
+            //     inputDesc, outputDesc, inputs, outputs, workspace, stream);
         }
 #endif
-        return enqueueDispatchKVCacheType<__nv_bfloat16>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
+        // printf("Type: bfloat16\n");
+        // return enqueueDispatchKVCacheType<__nv_bfloat16>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
     }
 #endif
     return 0;

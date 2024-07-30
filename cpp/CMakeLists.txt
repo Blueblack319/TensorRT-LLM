@@ -394,6 +394,11 @@ if((WIN32))
   endif()
 endif()
 
+# [ ] For Fast Build
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O0")
+# set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -O0")
+# set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -O0")
+
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 if(FAST_MATH)
