@@ -1207,22 +1207,22 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     TopK<float, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<float, MAX_K>);
 
     // DEBUGGING
-    if (hi == 0 && tidx == 0)
-    {
-        printf("Total qk values: ");
-        for (int i = 0; i < 10; i += 1)
-        {
-            printf("%f, ", total.u[i]);
-        }
-        printf("\n");
+    // if (hi == 0 && tidx == 0)
+    // {
+    //     printf("Total qk values: ");
+    //     for (int i = 0; i < 10; i += 1)
+    //     {
+    //         printf("%f, ", total.u[i]);
+    //     }
+    //     printf("\n");
 
-        printf("qk values: ");
-        for (int i = 0; i <= kv_loop_length; i++)
-        {
-            printf("%f, ", qk_smem[i]);
-        }
-        printf("\n");
-    }
+    //     printf("qk values: ");
+    //     for (int i = 0; i <= kv_loop_length; i++)
+    //     {
+    //         printf("%f, ", qk_smem[i]);
+    //     }
+    //     printf("\n");
+    // }
 
     // Store the topk value for each head into the global memory
     int const topk_qk_index = hi * MAX_K;
