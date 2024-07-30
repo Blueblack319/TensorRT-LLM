@@ -15,7 +15,7 @@
  */
 #pragma once
 
-// #include "decoderMaskedMultiheadAttentionTemplate.h"
+#include "decoderMaskedMultiheadAttentionTemplate.h"
 #include "decoderMaskedMultiheadAttentionTemplate_1.h"
 #include "decoderMaskedMultiheadAttentionTemplate_2.h"
 #include "tensorrt_llm/common/assert.h"

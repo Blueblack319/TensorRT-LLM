@@ -477,6 +477,7 @@ int GPTAttentionCustomPlugin::enqueueDispatchKVCacheType(const nvinfer1::PluginT
     return 0;
 }
 
+// [x] For Fast Build
 int GPTAttentionCustomPlugin::enqueue(const nvinfer1::PluginTensorDesc* inputDesc,
     const nvinfer1::PluginTensorDesc* outputDesc, const void* const* inputs, void* const* outputs, void* workspace,
     cudaStream_t stream) noexcept
@@ -487,13 +488,13 @@ int GPTAttentionCustomPlugin::enqueue(const nvinfer1::PluginTensorDesc* inputDes
     }
     else if (mType == nvinfer1::DataType::kFLOAT)
     {
-        return enqueueDispatchKVCacheType<float>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
+        // return enqueueDispatchKVCacheType<float>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
     }
 #ifdef ENABLE_BF16
-    else if (mType == nvinfer1::DataType::kBF16)
-    {
-        return enqueueDispatchKVCacheType<__nv_bfloat16>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
-    }
+    // else if (mType == nvinfer1::DataType::kBF16)
+    // {
+    //     return enqueueDispatchKVCacheType<__nv_bfloat16>(inputDesc, outputDesc, inputs, outputs, workspace, stream);
+    // }
 #endif
     return 0;
 }

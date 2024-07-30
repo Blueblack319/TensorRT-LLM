@@ -115,6 +115,9 @@ namespace mmha
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// CHECKLIST
+#define MAX_K 10
+
 template <
     // The type of the inputs. Supported types: float, uint16_t, nv_bfloat16.
     typename T,
@@ -1102,9 +1105,9 @@ __global__ void masked_multihead_attention_kernel_1(
             *reinterpret_cast<Qk_vec_m*>(&k_cache[inBlockIdx]) = vec_conversion<Qk_vec_m, Qk_vec_k>(k_vec);
         }
         // [ ] Store the key vectors with full-precision into kv_cache_full
-        const int blockIdx_full = batch_beam_idx * num_heads_kv * Dh;
-        const int inBLockIdx_full = (hi_kv * 1 * Dh) + (1 * Dh) + qk_vec_idx;
-        params.kv_cache_full[blockIdx_full + inBLockIdx_full] = static_cast<float>(k_vec);
+        // const int blockIdx_full = batch_beam_idx * num_heads_kv * Dh;
+        // const int inBLockIdx_full = (hi_kv * 1 * Dh) + (1 * Dh) + qk_vec_idx;
+        // params.kv_cache_full[blockIdx_full + inBLockIdx_full] = static_cast<float>(k_vec);
     }
 
     // CHECKLIST: Finally, compare and select the max qk value within a block(attention head)
@@ -1116,14 +1119,12 @@ __global__ void masked_multihead_attention_kernel_1(
         qk_max = fmaxf(qk_max, __shfl_xor_sync(uint32_t(-1), qk_max, mask));
     }
 
-    // if (tidx <= kv_loop_length)
-    // {
+    // [x] Store the qk_values and qk_max_values into the intermediate buffers
 #pragma unroll
     for (int out_i = tidx; out_i <= kv_loop_length; out_i += THREADS_PER_BLOCK)
     {
         params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
     }
-    // }
     if (tidx == 0)
     {
         params.qk_max_values[hi] = qk_max;
@@ -1132,66 +1133,143 @@ __global__ void masked_multihead_attention_kernel_1(
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // TODO_: Perform Topk operation
 
-    const bool IS_HALF = std::is_same<T, half>::value;
-    const bool IS_SINGLE = std::is_same<T, float>::value;
-    const int MAX_K = 10;
-    if constexpr (IS_HALF || IS_SINGLE)
-    {
-        const T MAX_T_VAL = (IS_HALF) ? 65504.F : FLT_MAX;
-        TopK<T, MAX_K> partial;
+    //     int const MAX_K = 10;
 
-        typedef cub::BlockReduce<TopK<T, MAX_K>, THREADS_PER_BLOCK> BlockReduce;
-        __shared__ typename BlockReduce::TempStorage temp_storage;
+    //     float const MAX_T_VAL = 65504.F;
+    //     TopK<float, MAX_K> partial;
 
-        // Initilization
-#pragma unroll
-        for (int i = 0; i < MAX_K; ++i)
-        {
-            partial.p[i] = -1;
-            partial.u[i] = -MAX_T_VAL;
-        }
+    //     typedef cub::BlockReduce<TopK<float, MAX_K>, THREADS_PER_BLOCK> BlockReduce;
+    //     __shared__ typename BlockReduce::TempStorage temp_storage;
 
-        // Insertion of values
+    //     // Initilization
+    // #pragma unroll
+    //     for (int i = 0; i < MAX_K; ++i)
+    //     {
+    //         partial.p[i] = -1;
+    //         partial.u[i] = -MAX_T_VAL;
+    //     }
 
-#pragma unroll
-        for (int i = tidx; i <= kv_loop_length; i += THREADS_PER_BLOCK)
-        {
-            // int index = bid * MAX_K * MAX_K + i * THREADS_PER_BLOCK + tid;
-            partial.insert(qk_smem[i], i);
-        }
+    //     // Insertion of values
 
-        // Block-wide Reduction
-        TopK<T, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<T, MAX_K>);
+    // #pragma unroll
+    //     for (int i = tidx; i <= kv_loop_length; i += THREADS_PER_BLOCK)
+    //     {
+    //         // int index = bid * MAX_K * MAX_K + i * THREADS_PER_BLOCK + tid;
+    //         partial.insert(qk_smem[i], i);
+    //     }
 
-        // DEBUGGING
-        if (hi == 0 && tidx == 0)
-        {
-            printf("TopK qk values: ");
-            for (int i = 0; i < 10; i += 1)
-            {
-                printf("%f, ", total.u[i]);
-            }
-            printf("\n");
+    //     // Block-wide Reduction
+    //     TopK<float, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<float, MAX_K>);
 
-            printf("qk values: ");
-            for (int i = 0; i <= kv_loop_length; i++)
-            {
-                printf("%f, ", qk_smem[i]);
-            }
-            printf("\n");
-        }
+    //     // DEBUGGING
+    //     if (hi == 0 && tidx == 0)
+    //     {
+    //         printf("Total qk values: ");
+    //         for (int i = 0; i < 10; i += 1)
+    //         {
+    //             printf("%f, ", total.u[i]);
+    //         }
+    //         printf("\n");
 
-        // Store the topk value for each head into the global memory
-        const int topk_qk_index = hi * MAX_K;
-#pragma unroll
-        for (int i = 0; i < MAX_K; i += THREADS_PER_BLOCK)
-        {
-            params.topk_qk_indices[topk_qk_index + i] = total.p[i];
-        }
-    }
+    //         printf("qk values: ");
+    //         for (int i = 0; i <= kv_loop_length; i++)
+    //         {
+    //             printf("%f, ", qk_smem[i]);
+    //         }
+    //         printf("\n");
+    //     }
+
+    //     // Store the topk value for each head into the global memory
+    //     int const topk_qk_index = hi * MAX_K;
+    // #pragma unroll
+    //     for (int i = 0; i < MAX_K; i += THREADS_PER_BLOCK)
+    //     {
+    //         params.topk_qk_indices[topk_qk_index + i] = total.p[i];
+    //     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    // TODO_: Transfer some data to Host
+    // TODO_: Topk V2
+    //     __syncthreads();
+
+    //     // Bitonic sort
+    //     for (int k = 2; k <= kv_loop_length; k <<= 1)
+    //     {
+    //         for (int j = k >> 1; j > 0; j >>= 1)
+    //         {
+    //             int ixj = tidx ^ j;
+    //             if (ixj > tidx)
+    //             {
+    //                 if ((tidx & k) == 0)
+    //                 {
+    //                     if (qk_smem[tidx] < qk_smem[ixj])
+    //                     {
+    //                         // Swap elements
+    //                         float temp = qk_smem[tidx];
+    //                         qk_smem[tidx] = qk_smem[ixj];
+    //                         qk_smem[ixj] = temp;
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     if (qk_smem[tidx] > qk_smem[ixj])
+    //                     {
+    //                         // Swap elements
+    //                         float temp = qk_smem[tidx];
+    //                         qk_smem[tidx] = qk_smem[ixj];
+    //                         qk_smem[ixj] = temp;
+    //                     }
+    //                 }
+    //             }
+    //             __syncthreads();
+    //         }
+    //     }
+
+    //     float block_topk_value = tidx < MAX_K ? qk_smem[tidx] : 0;
+    //     int block_topk_index;
+
+    // #pragma unroll
+    //     for (int i = tidx; i <= kv_loop_length; i += THREADS_PER_BLOCK)
+    //     {
+    //         qk_smem[i] = params.qk_values[qk_values_offset + i];
+    //     }
+
+    //     __syncthreads();
+
+    // #pragma unroll
+    //     for (int i = tidx; i < MAX_K; i += THREADS_PER_BLOCK)
+    //     {
+    //         for (int j = 0; j <= kv_loop_length; j++)
+    //         {
+    //             if (qk_smem[j] == block_topk_value)
+    //             {
+    //                 block_topk_index = j;
+    //                 break;
+    //             }
+    //         }
+    //     }
+
+    //     int const topk_qk_index = hi * MAX_K;
+    //     for (int i = tidx; i < MAX_K; i += THREADS_PER_BLOCK)
+    //     {
+    //         params.topk_qk_indices[topk_qk_index + i] = block_topk_index;
+    //     }
+
+    // DEBUGGING
+    // if (tidx == 0 && hi == 0)
+    // {
+    //     printf("QK values: ");
+    //     for (int i = 0; i <= kv_loop_length; i++)
+    //     {
+    //         printf("%f, ", qk_smem[i]);
+    //     }
+    //     printf("\n");
+    //     printf("Top 10: ");
+    //     for (int i = 0; i < MAX_K; i++)
+    //     {
+    //         printf("%f, ", qk_smem[params.topk_qk_indices[topk_qk_index + i]]);
+    //     }
+    //     printf("\n");
+    // }
 }
 
 } // namespace mmha
