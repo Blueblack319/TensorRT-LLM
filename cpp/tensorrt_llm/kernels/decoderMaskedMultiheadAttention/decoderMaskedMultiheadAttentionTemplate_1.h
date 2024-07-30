@@ -1149,8 +1149,11 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
             *reinterpret_cast<Qk_vec_m*>(&k_cache[inBlockIdx]) = vec_conversion<Qk_vec_m, Qk_vec_k>(k_vec);
         }
         // [ ] Store the key with full-precision into the kv_cache_full
+        // int const blockIndex_full = batch_beam_idx * 2 * num_heads_kv * Dh;
+        // int const inBlockIndex_full = hi_kv;
+        // *reinterpret_cast<Qk_vec_m*>(&params.kv_cache_full[blockIndex_full + inBlockIndex_full])
+        //     = vec_conversion<Qk_vec_m, Qk_vec_k>(k_vec);
     }
-
     // The warps finalize the reduction.
     qk_max = lane < WARPS_PER_BLOCK ? red_smem[lane] : -FLT_MAX;
 #pragma unroll
