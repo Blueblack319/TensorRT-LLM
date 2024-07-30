@@ -65,12 +65,16 @@ GPTAttentionPlugin::GPTAttentionPlugin(int layer_idx, int num_heads, int vision_
           max_context_length, qkv_bias_enabled, cross_attention, max_distance, pos_shift_enabled, dense_context_fmha,
           use_paged_context_fmha, use_fp8_context_fmha, use_cache, is_spec_decoding_enabled)
 {
+    // [ ] Allocate kv_cache_full in Host
+
     initEntryIdx();
 }
 
 GPTAttentionPlugin::GPTAttentionPlugin(void const* data, size_t length)
     : GPTAttentionPluginCommon(data, length)
 {
+    // [ ] Allocate kv_cache_full in Host
+
     initEntryIdx();
 }
 

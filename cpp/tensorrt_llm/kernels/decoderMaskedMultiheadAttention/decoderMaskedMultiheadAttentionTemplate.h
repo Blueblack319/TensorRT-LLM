@@ -663,7 +663,7 @@ template <>
 __inline__ __device__ Float8_ vec_conversion<Float8_, uint4>(uint4 const& a)
 {
     // [ ] Check this function is used
-    printf("HERE\n");
+    // printf("HERE\n");
     Float8_ fc;
     fc.x = half2_to_float2(a.x);
     fc.y = half2_to_float2(a.y);

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-// [ ] Maybe
+// [x] Maybe
 #include "tensorrt_llm/kernels/decoderMaskedMultiheadAttention/decoderMaskedMultiheadAttentionTemplate.h"
 
 #include "tensorrt_llm/common/cudaTypeUtils.cuh"
@@ -1169,7 +1169,6 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     {
         params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
     }
-    // }
     if (tidx == 0)
     {
         params.qk_max_values[hi] = qk_max;

@@ -169,6 +169,8 @@ inline void multi_block_grid_setup(dim3& grid, Multihead_attention_params<T, DO_
         DYNAMIC_THDS_PER_BLOCK, dynamic_smem_sz));
 
 // [x] Split the existing kernel into two custom kernels
+// [ ] Receive the Key from kernel_1 and Value from kernel_2
+// [ ] Receive the topk indices from GPU
 #define MMHA_KERNEL(DYNAMIC_THDS_PER_BLOCK, ENABLE_MULTI_BLOCK)                                                        \
     std::size_t const dynamic_smem_sz{                                                                                 \
         mmha::smem_size_in_bytes<T, Dh, ENABLE_MULTI_BLOCK>(params, DYNAMIC_THDS_PER_BLOCK)};                          \
