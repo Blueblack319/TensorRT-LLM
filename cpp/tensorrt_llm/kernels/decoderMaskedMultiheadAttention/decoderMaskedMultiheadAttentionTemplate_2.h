@@ -864,6 +864,8 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
         }
     }
 
+    // CHECKLIST: Split-Point======================================================================================
+
     // Put Values part below so we leverage __syncthreads
     // from the previous step
 
@@ -1021,6 +1023,7 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     // Make sure we can overwrite the v cache if using cyclic kv cache.
     __syncthreads();
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // One group of threads computes the product(s) for the current timestep.
     if (vo == kv_loop_length % V_PER_ITER && is_valid_vi && (!MULTI_BLOCK_FLAG || (c_tile == current_step_ctile_idx)))
     {
@@ -1108,9 +1111,13 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
         }
 #endif // MMHA_USE_FP32_ACCUM_FOR_LOGITS
     }
+
+    // CHECKLIST: out => partial_out
+
     // Make sure we can start writing to shared memory.
     __syncthreads();
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Run the final reduction amongst the different groups computing different partial outputs.
 #pragma unroll
     for (int active_groups = V_PER_ITER; active_groups >= 2; active_groups /= 2)

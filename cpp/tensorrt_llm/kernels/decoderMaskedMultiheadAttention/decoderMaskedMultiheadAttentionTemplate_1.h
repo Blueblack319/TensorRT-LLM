@@ -113,6 +113,68 @@ namespace mmha
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// CHECKLIST
+template <typename T, int MAX_K>
+struct TopK
+{
+    int p[MAX_K]; // CHECKLIST: Array to store indices of top-K elements
+    T u[MAX_K];   // CHECKLIST: Array to store values of top-K elements
+
+    __device__ __forceinline__ void insert(T elem, int elem_id)
+    {
+        // CHECKLIST: Insertion Condition
+        if (elem_id < 0)
+        {
+            return;
+        }
+
+        if (elem > u[MAX_K - 1] || (p[MAX_K - 1] == -1) || ((elem == u[MAX_K - 1]) && (elem_id < p[MAX_K - 1])))
+        // if (elem > u[MAX_K-1] || ((elem == u[MAX_K-1]) && (elem_id < p[MAX_K-1])))
+        {
+            u[MAX_K - 1] = elem;
+            p[MAX_K - 1] = elem_id;
+        }
+
+        // CHECKLIST: Bubble up the Element
+        for (int k = MAX_K - 2; k >= 0; --k)
+        {
+            if ((u[k + 1] > u[k]) || (p[k] == -1) || ((u[k + 1] == u[k]) && (p[k + 1] < p[k])))
+            // if ((u[k+1] > u[k]) || ((u[k+1] == u[k])&&(p[k+1] < p[k])))
+            {
+                T u2 = u[k];
+                int p2 = p[k];
+                u[k] = u[k + 1];
+                p[k] = p[k + 1];
+                u[k + 1] = u2;
+                p[k + 1] = p2;
+            }
+        }
+    }
+
+    __device__ __forceinline__ void init()
+    {
+        bool const IS_FP16 = std::is_same<T, half>::value;
+        T const MAX_T_VAL = (IS_FP16) ? 65504.F : FLT_MAX;
+
+        for (int i = 0; i < MAX_K; i++)
+        {
+            p[i] = -1;
+            u[i] = -MAX_T_VAL;
+        }
+    }
+};
+
+template <typename T, int MAX_K>
+__device__ __forceinline__ TopK<T, MAX_K> reduce_topk_op(TopK<T, MAX_K> const& a, TopK<T, MAX_K> const& b)
+{
+    TopK<T, MAX_K> res = a;
+    for (int i = 0; i < MAX_K; ++i)
+        res.insert(b.u[i], b.p[i]);
+    return res;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <
     // The type of the inputs. Supported types: float, uint16_t, nv_bfloat16.
     typename T,
@@ -1166,11 +1228,13 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     {
         params.qk_values[qk_values_offset + out_i] = qk_smem[out_i];
     }
-    // }
     if (tidx == 0)
     {
         params.qk_max_values[hi] = qk_max;
     }
+
+    // [ ] Maybe
+    __syncthreads();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // TODO_: Perform Topk operation
@@ -1204,22 +1268,22 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     TopK<float, MAX_K> total = BlockReduce(temp_storage).Reduce(partial, reduce_topk_op<float, MAX_K>);
 
     // DEBUGGING
-    if (hi == 0 && tidx == 0)
-    {
-        printf("Total qk values: ");
-        for (int i = 0; i < 10; i += 1)
-        {
-            printf("%f, ", total.u[i]);
-        }
-        printf("\n");
+    //    if (hi == 0 && tidx == 0)
+    //    {
+    //        printf("Total qk values: ");
+    //        for (int i = 0; i < 10; i += 1)
+    //        {
+    //            printf("%f, ", total.u[i]);
+    //        }
+    //        printf("\n");
 
-        printf("qk values: ");
-        for (int i = 0; i <= kv_loop_length; i++)
-        {
-            printf("%f, ", qk_smem[i]);
-        }
-        printf("\n");
-    }
+    //        printf("qk values: ");
+    //        for (int i = 0; i <= kv_loop_length; i++)
+    //        {
+    //            printf("%f, ", qk_smem[i]);
+    //        }
+    //        printf("\n");
+    //    }
 
     // Store the topk value for each head into the global memory
     int const topk_qk_index = hi * MAX_K;
@@ -1228,6 +1292,9 @@ __global__ void __launch_bounds__(MAX_THEADS_PER_BLOCK, MIN_BLOCKS_PER_SM) maske
     {
         params.topk_qk_indices[topk_qk_index + i] = total.p[i];
     }
+
+    // [ ] Maybe
+    __syncthreads();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // TODO_: Transfer some data to Host

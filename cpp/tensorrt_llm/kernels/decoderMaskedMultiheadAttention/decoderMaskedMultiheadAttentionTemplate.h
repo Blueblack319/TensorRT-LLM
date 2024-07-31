@@ -1259,68 +1259,6 @@ __device__ inline constexpr uint2 chunk_index(unsigned tidx)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// CHECKLIST
-template <typename T, int MAX_K>
-struct TopK
-{
-    int p[MAX_K]; // CHECKLIST: Array to store indices of top-K elements
-    T u[MAX_K];   // CHECKLIST: Array to store values of top-K elements
-
-    __device__ __forceinline__ void insert(T elem, int elem_id)
-    {
-        // CHECKLIST: Insertion Condition
-        if (elem_id < 0)
-        {
-            return;
-        }
-
-        if (elem > u[MAX_K - 1] || (p[MAX_K - 1] == -1) || ((elem == u[MAX_K - 1]) && (elem_id < p[MAX_K - 1])))
-        // if (elem > u[MAX_K-1] || ((elem == u[MAX_K-1]) && (elem_id < p[MAX_K-1])))
-        {
-            u[MAX_K - 1] = elem;
-            p[MAX_K - 1] = elem_id;
-        }
-
-        // CHECKLIST: Bubble up the Element
-        for (int k = MAX_K - 2; k >= 0; --k)
-        {
-            if ((u[k + 1] > u[k]) || (p[k] == -1) || ((u[k + 1] == u[k]) && (p[k + 1] < p[k])))
-            // if ((u[k+1] > u[k]) || ((u[k+1] == u[k])&&(p[k+1] < p[k])))
-            {
-                T u2 = u[k];
-                int p2 = p[k];
-                u[k] = u[k + 1];
-                p[k] = p[k + 1];
-                u[k + 1] = u2;
-                p[k + 1] = p2;
-            }
-        }
-    }
-
-    __device__ __forceinline__ void init()
-    {
-        bool const IS_FP16 = std::is_same<T, half>::value;
-        T const MAX_T_VAL = (IS_FP16) ? 65504.F : FLT_MAX;
-
-        for (int i = 0; i < MAX_K; i++)
-        {
-            p[i] = -1;
-            u[i] = -MAX_T_VAL;
-        }
-    }
-};
-
-template <typename T, int MAX_K>
-__device__ __forceinline__ TopK<T, MAX_K> reduce_topk_op(TopK<T, MAX_K> const& a, TopK<T, MAX_K> const& b)
-{
-    TopK<T, MAX_K> res = a;
-    for (int i = 0; i < MAX_K; ++i)
-        res.insert(b.u[i], b.p[i]);
-    return res;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 template <
     // The type of the inputs. Supported types: float, uint16_t, nv_bfloat16.
     typename T,
