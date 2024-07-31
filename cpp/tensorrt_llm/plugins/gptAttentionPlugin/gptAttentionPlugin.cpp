@@ -66,6 +66,25 @@ GPTAttentionPlugin::GPTAttentionPlugin(int layer_idx, int num_heads, int vision_
           use_paged_context_fmha, use_fp8_context_fmha, use_cache, is_spec_decoding_enabled)
 {
     // [ ] Allocate kv_cache_full in Host
+    // Max number of tokens for an inference = max_context_length + max_seq_len
+    int const max_seq = max_context_kv_len + 128;
+
+    v_cache_cpu.reserve(max_seq);
+
+    for (size_t i = 0; i < max_seq; ++i)
+    {
+        std::vector<std::vector<int>> sheet;
+        sheet.reserve(num_kv_heads);
+
+        for (size_t j = 0; j < num_kv_heads; ++j)
+        {
+            std::vector<int> row;
+            row.reserve(head_size);
+
+            sheet.push_back(row);
+        }
+        v_cache_cpu.push_back(sheet);
+    }
 
     initEntryIdx();
 }
@@ -74,6 +93,25 @@ GPTAttentionPlugin::GPTAttentionPlugin(void const* data, size_t length)
     : GPTAttentionPluginCommon(data, length)
 {
     // [ ] Allocate kv_cache_full in Host
+    // Max number of tokens for an inference = max_context_length + max_seq_len
+    int const max_seq = max_context_kv_len + 128;
+
+    v_cache_cpu.reserve(max_seq);
+
+    for (size_t i = 0; i < max_seq; ++i)
+    {
+        std::vector<std::vector<int>> sheet;
+        sheet.reserve(num_kv_heads);
+
+        for (size_t j = 0; j < num_kv_heads; ++j)
+        {
+            std::vector<int> row;
+            row.reserve(head_size);
+
+            sheet.push_back(row);
+        }
+        v_cache_cpu.push_back(sheet);
+    }
 
     initEntryIdx();
 }

@@ -152,6 +152,12 @@ public:
     };
 
 private:
+    // [ ] Create the variable for KVCache
+    std::vector<std::vector<std::vector<int>>> k_cache_cpu;
+    std::vector<std::vector<std::vector<int>>> v_cache_cpu;
+
+    // [ ] Create the cudaStream for data tranfer
+
     template <typename T, typename AttentionOutT, typename KVCacheBuffer>
     int enqueueSome(int32_t seqIdxBeg, int32_t localNbSeq, int32_t tokenIdxBeg, int32_t localNbTokens,
         nvinfer1::PluginTensorDesc const* inputDesc, nvinfer1::PluginTensorDesc const* outputDesc,
