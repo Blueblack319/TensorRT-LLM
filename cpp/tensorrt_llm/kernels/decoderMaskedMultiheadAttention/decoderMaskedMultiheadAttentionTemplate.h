@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "tensorrt_llm/kernels/samplingTopPKernels.h"
 #include "tensorrt_llm/common/cudaTypeUtils.cuh"
 #include "tensorrt_llm/common/memoryUtils.h"
 #include "tensorrt_llm/kernels/decoderMaskedMultiheadAttention.h"
