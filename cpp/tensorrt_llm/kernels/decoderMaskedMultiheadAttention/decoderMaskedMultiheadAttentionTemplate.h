@@ -21,6 +21,7 @@
 #include "tensorrt_llm/kernels/decoderMaskedMultiheadAttentionUtils.h"
 #include "tensorrt_llm/kernels/gptKernels.h"
 #include "tensorrt_llm/kernels/kvCacheUtils.h"
+#include "tensorrt_llm/kernels/samplingTopPKernels.h"
 #include <assert.h>
 #include <float.h>
 #include <type_traits>

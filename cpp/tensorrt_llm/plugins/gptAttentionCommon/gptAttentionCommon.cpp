@@ -923,7 +923,7 @@ int GPTAttentionPluginCommon::enqueueContext(EnqueueContextParams<T, KVCacheBuff
     if (mEnableContextFMHA)
     {
         // [ ] Check the mEnableContextFMHA works or not
-        printf("\n\nmEnableContextFMHA\n\n");
+        // printf("\n\nmEnableContextFMHA\n\n");
         bool const enablePagedKVContextFMHA = mPagedKVCache && mPagedContextFMHA;
         TLLM_CHECK_WITH_INFO(!(mKVCacheQuantMode.hasInt8KvCache() && enablePagedKVContextFMHA),
             "Paged Context FMHA doesn't work with int8 kv cache currently.");

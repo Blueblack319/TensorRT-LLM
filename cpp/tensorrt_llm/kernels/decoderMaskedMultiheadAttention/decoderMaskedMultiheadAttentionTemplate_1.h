@@ -25,6 +25,7 @@
 #include "tensorrt_llm/kernels/gptKernels.h"
 #include "tensorrt_llm/kernels/kvCacheUtils.h"
 #include <assert.h>
+#include <cub/cub.cuh>
 #include <float.h>
 #include <type_traits>
 
